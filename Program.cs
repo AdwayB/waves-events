@@ -1,4 +1,9 @@
+using System.Text;
 using dotenv.net;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using waves_events.Helpers;
+using waves_events.Models;
 
 DotEnv.Load();
 
@@ -11,39 +16,62 @@ builder
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
     .AddEnvironmentVariables();
 
+builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("Jwt"));
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options => {
+        options.TokenValidationParameters = new TokenValidationParameters() {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+        options.Events = new JwtBearerEvents {
+            OnTokenValidated = context => {  
+                var userId = context.Principal?.FindFirst("userId")?.Value;
+                var userType = context.Principal?.FindFirst("type")?.Value;
+                if (userId == null) return Task.CompletedTask;
+                context.HttpContext.Items["UserID"] = userId;
+                context.HttpContext.Items["UserType"] = userType;
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context => {
+                Console.WriteLine($"Authentication failed: Exception: {context.Exception.Message}");
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment()) {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    // app.UseSwagger();
+    // app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication(); // Use authentication
+app.UseAuthorization();
 
-var summaries = new[] {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.MapControllers();
 
-app.MapGet("/weatherforecast", () => {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
-                new WeatherForecast
-                (
-                    DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                    Random.Shared.Next(-20, 55),
-                    summaries[Random.Shared.Next(summaries.Length)]
-                ))
-            .ToArray();
-        return forecast;
-    })
-    .WithName("GetWeatherForecast")
-    .WithOpenApi();
+try {
+    var mongoContext = app.Services.GetRequiredService<MongoDatabaseContext>();
+    // await mongoContext.EnsureIndexesCreatedAsync();
+    await mongoContext.SeedDataAsync(app.Services);
+}
+catch (Exception ex) {
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "An error occurred while setting up MongoDB.");
+}
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary) {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
