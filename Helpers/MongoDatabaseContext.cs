@@ -82,10 +82,18 @@ public class MongoDatabaseContext {
     "7efd962f-1e6b-49d7-b424-3ea3c48ed76c",
     "b35f2b55-ff5c-4e3f-bf15-947bef2f0309"
   ];
+  
+  private static readonly List<double[]> SampleCoordinates = [
+    [-73.935242, 40.730610], // New York
+    [-0.127758, 51.507351], // London
+    [2.352222, 48.856613], // Paris
+    [139.650311, 35.676192], // Tokyo
+    [151.209900, -33.865143] // Sydney
+  ]; 
 
   public MongoDatabaseContext(IConfiguration configuration) {
     _client = new MongoClient(configuration.GetConnectionString("MongoConnection"));
-    _database = _client.GetDatabase("waves-database");
+    _database = _client.GetDatabase("waves-events");
   }
 
   public IMongoCollection<Events> Events => _database.GetCollection<Events>("Events");
@@ -97,11 +105,16 @@ public class MongoDatabaseContext {
   }
 
   public async Task EnsureIndexesCreatedAsync() {
-    await Events.Indexes.CreateOneAsync(
-      new CreateIndexModel<Events>(
-        Builders<Events>.IndexKeys.Ascending(e => e.EventId),
-        new CreateIndexOptions { Unique = false }
-      )
+    await Events.Indexes.CreateManyAsync(
+      [
+        new CreateIndexModel<Events>(
+          Builders<Events>.IndexKeys.Ascending(e => e.EventId),
+          new CreateIndexOptions { Unique = false }
+        ),
+        new CreateIndexModel<Events>(
+          Builders<Events>.IndexKeys.Geo2DSphere(e => e.EventLocation)
+          )
+      ]
     );
 
     await Feedback.Indexes.CreateOneAsync(
@@ -114,58 +127,67 @@ public class MongoDatabaseContext {
     await Payments.Indexes.CreateOneAsync(
       new CreateIndexModel<Payments>(
         Builders<Payments>.IndexKeys.Ascending(e => e.UserId),
-        new CreateIndexOptions { Unique = true }
+        new CreateIndexOptions { Unique = false }
       )
     );
   }
 
-  public async Task SeedDataAsync(IServiceProvider serviceProvider) {
-    using (var scope = serviceProvider.CreateScope()) {
-      var emptyEvents = await _database.GetCollection<Events>("Events").CountDocumentsAsync(_ => true) == 0;
-      var emptyPayments = await _database.GetCollection<Payments>("Payments").CountDocumentsAsync(_ => true) == 0;
-      var emptyFeedbacks = await _database.GetCollection<Feedback>("Feedbacks").CountDocumentsAsync(_ => true) == 0;
-      
-      if (emptyEvents) {
-        var events = CreateSampleEvents();
-        await _database.GetCollection<Events>("Events").InsertManyAsync(events);
-      }
+  public async Task SeedDataAsync() {
+    var emptyEvents = await _database.GetCollection<Events>("Events").CountDocumentsAsync(_ => true) == 0;
+    var emptyPayments = await _database.GetCollection<Payments>("Payments").CountDocumentsAsync(_ => true) == 0;
+    var emptyFeedbacks = await _database.GetCollection<Feedback>("Feedbacks").CountDocumentsAsync(_ => true) == 0;
+    
+    if (emptyEvents) {
+      var events = CreateSampleEvents();
+      await _database.GetCollection<Events>("Events").InsertManyAsync(events);
+    }
 
-      if (emptyPayments) {
-        var payments = CreateSamplePayments();
-        await _database.GetCollection<Payments>("Payments").InsertManyAsync(payments);
-      }
+    if (emptyPayments) {
+      var payments = CreateSamplePayments();
+      await _database.GetCollection<Payments>("Payments").InsertManyAsync(payments);
+    }
 
-      if (emptyFeedbacks) {
-        var feedbacks = CreateSampleFeedbacks();
-        await _database.GetCollection<Feedback>("Feedbacks").InsertManyAsync(feedbacks);
-      }
+    if (emptyFeedbacks) {
+      var feedbacks = CreateSampleFeedbacks();
+      await _database.GetCollection<Feedback>("Feedbacks").InsertManyAsync(feedbacks);
     }
   }
   
   private static List<Events> CreateSampleEvents() {
     var rnd = new Random();
-    return SampleEventGuids.Select(guid => new Events {
-      EventId = Guid.Parse(guid),
-      EventName = $"Event Name for {guid[..8]}",
-      EventDescription = "Description of the event.",
-      EventBackgroundImage = "data:image/png;base64,example",
-      EventTotalSeats = 100,
-      EventRegisteredSeats = 0,
-      EventTicketPrice = 49.99,
-      EventGenres = ["Music", "Dance"],
-      EventCollab = SampleAdminUserIds.OrderBy(_ => Guid.NewGuid()).Take(2).Where(x => x != guid).Select(Guid.Parse).ToList(),
-      EventStartDate = DateTime.UtcNow.AddDays(30),
-      EventEndDate = DateTime.UtcNow.AddDays(32),
-      EventLocation = "Sample Location",
-      EventStatus = "Scheduled",
-      EventCreatedBy = Guid.Parse(SampleAdminUserIds[rnd.Next(SampleAdminUserIds.Count)]),
-      EventAgeRestriction = 18,
-      EventCountry = "Sample Country",
-      EventDiscounts = [new DiscountCodes { discountCode = "SAVE10", discountPercentage = 10 }]
+    return SampleEventGuids.Select((guid, index) => {
+      var randomStartOffset = rnd.Next(2, 20);
+      var randomEndOffset = randomStartOffset + rnd.Next(1, 4);
+
+      return new Events {
+        EventId = Guid.Parse(guid),
+        EventName = $"Event Name for {guid[..8]}",
+        EventDescription = "Description of the event.",
+        EventBackgroundImage = $"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/"
+                               + $"w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==",
+        EventTotalSeats = 100,
+        EventRegisteredSeats = 0,
+        EventTicketPrice = 49.99,
+        EventGenres = ["Music", "Dance"],
+        EventCollab = SampleAdminUserIds.OrderBy(_ => Guid.NewGuid())
+          .Take(2).Where(x => x != guid).Select(Guid.Parse)
+          .ToList(),
+        EventStartDate = DateTime.UtcNow.AddDays(randomStartOffset),
+        EventEndDate = DateTime.UtcNow.AddDays(randomEndOffset),
+        EventLocation = new Location {
+          Type = "Point",
+          Coordinates = SampleCoordinates[index % SampleCoordinates.Count]
+        },
+        EventStatus = "Scheduled",
+        EventCreatedBy = Guid.Parse(SampleAdminUserIds[rnd.Next(SampleAdminUserIds.Count)]),
+        EventAgeRestriction = 18,
+        EventCountry = "Sample Country",
+        EventDiscounts = [new DiscountCodes { discountCode = "SAVE10", discountPercentage = 10 }]
+      };
     }).ToList();
   }
   
-  private List<Payments> CreateSamplePayments() {
+  private static List<Payments> CreateSamplePayments() {
     var rnd = new Random();
     var payments = SampleUserIds.Take(5).Select(userId => new Payments {
       UserId = Guid.Parse(userId),
@@ -180,9 +202,10 @@ public class MongoDatabaseContext {
     return payments;
   }
   
-  private List<Feedback> CreateSampleFeedbacks() {
+  private static List<Feedback> CreateSampleFeedbacks() {
     var rnd = new Random();
     var feedbacks = SampleEventGuids.Take(3).Select(eventGuid => new Feedback {
+      FeedbackId = new Guid(),
       EventId = Guid.Parse(eventGuid),
       UserFeedback = SampleUserIds.Take(5).Select(userId => new UserFeedback {
         UserId = userId,

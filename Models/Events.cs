@@ -27,16 +27,16 @@ public class Events {
     
     [BsonElement("eventTotalSeats")] 
     [Required]
-    public int EventTotalSeats { get; set; } = 0;
+    public int EventTotalSeats { get; set; }
     
     [BsonElement("eventRegisteredSeats")] 
     [Required]
     [CustomValidation(typeof(Events), "ValidateEventRegisteredSeats")]
-    public int EventRegisteredSeats { get; set; } = 0;
+    public int EventRegisteredSeats { get; set; }
     
     [BsonElement("eventTicketPrice")] 
     [Required]
-    public double EventTicketPrice { get; set; } = 0;
+    public double EventTicketPrice { get; set; }
     
     [BsonElement("eventGenres")] 
     [Required]
@@ -56,7 +56,7 @@ public class Events {
     
     [BsonElement("eventLocation")] 
     [Required]
-    public string EventLocation { get; set; } = string.Empty;
+    public Location EventLocation { get; set; } = new ();
     
     [BsonElement("eventStatus")] 
     [Required]
@@ -68,7 +68,7 @@ public class Events {
     
     [BsonElement("eventAgeRestriction")] 
     [Required]
-    public int EventAgeRestriction { get; set; } = 0;
+    public int EventAgeRestriction { get; set; }
     
     [BsonElement("eventCountry")] 
     [Required]
