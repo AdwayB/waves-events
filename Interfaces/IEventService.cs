@@ -4,6 +4,7 @@ namespace waves_events.Interfaces;
 
 public interface IEventService {
     Task<Events?> GetEventById (Guid id);
+    Task<List<Events>> GetEventByIdList (List<Guid> ids);
     Task<(List<Events>, int)> GetAllEvents (int pageNumber, int pageSize);
     Task<(List<Events>, int)> GetEventsWithGenre (string genre, int pageNumber, int pageSize);
     Task<(List<Events>, int)> GetEventsByArtist (Guid artistId, int pageNumber, int pageSize);

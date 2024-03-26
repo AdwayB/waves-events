@@ -30,11 +30,31 @@ public class EventService : IEventService {
   }
 
   public async Task<Events?> GetEventById(Guid id) {
+    if (id == Guid.Empty)
+      throw new ApplicationException("Event ID cannot be empty.");
+    
     try {
       return await _mongoDb.Events.Find(x => x.EventId == id).FirstOrDefaultAsync();
     }
     catch (Exception ex) {
       throw new ApplicationException("An error occurred while fetching events: " + ex.Message);
+    }
+  }
+
+  public async Task<List<Events>> GetEventByIdList (List<Guid> ids) {
+    if (ids.Contains(Guid.Empty) || ids.Count == 0)
+      throw new ApplicationException("Event IDs cannot be empty.");
+
+    try {
+      var eventsFilter = Builders<Events>.Filter.In(e => e.EventId, ids);
+      var events = await _mongoDb.Events.Find(eventsFilter).ToListAsync();
+
+      if (events == null || events.Count == 0)
+        throw new ApplicationException("No events found with the provided IDs.");
+      return events;
+    }
+    catch (Exception ex) {
+      throw new ApplicationException($"An error occurred while fetching events: {ex.Message}");
     }
   }
 
@@ -55,6 +75,9 @@ public class EventService : IEventService {
   }
 
   public async Task<(List<Events>, int)> GetEventsWithGenre(string genre, int pageNumber, int pageSize) {
+    if (genre.Length == 0)
+      throw new ApplicationException("Genre cannot be empty.");
+    
     try {
       var numberOfRecords = await _mongoDb.Events.Find(x => x.EventGenres.Contains(genre)).CountDocumentsAsync();
       var response = await _mongoDb
@@ -71,6 +94,9 @@ public class EventService : IEventService {
   }
 
   public async Task<(List<Events>, int)> GetEventsByArtist(Guid artistId, int pageNumber, int pageSize) {
+    if (artistId == Guid.Empty)
+      throw new ApplicationException("Artist ID cannot be empty.");
+    
     try {
       var numberOfRecords = await _mongoDb.Events.Find(x => x.EventCreatedBy.Equals(artistId)).CountDocumentsAsync();
       var response = await _mongoDb
