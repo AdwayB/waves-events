@@ -5,7 +5,8 @@ namespace waves_events.Models;
 public enum PaymentStatus {
     Pending,
     Success,
-    Failed
+    Failed,
+    Cancelled
 };
 
 public class PaymentDetails {

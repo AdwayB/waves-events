@@ -124,11 +124,16 @@ public class MongoDatabaseContext {
       )
     );
 
-    await Payments.Indexes.CreateOneAsync(
-      new CreateIndexModel<Payments>(
-        Builders<Payments>.IndexKeys.Ascending(e => e.UserId),
-        new CreateIndexOptions { Unique = false }
-      )
+    await Payments.Indexes.CreateManyAsync(
+      [
+        new CreateIndexModel<Payments>(
+          Builders<Payments>.IndexKeys.Ascending(e => e.UserId),
+          new CreateIndexOptions { Unique = false }
+        ),
+        new CreateIndexModel<Payments>(
+          Builders<Payments>.IndexKeys.Ascending("PaymentDetails.EventId")
+        )
+      ]
     );
   }
 
@@ -189,6 +194,8 @@ public class MongoDatabaseContext {
   
   private static List<Payments> CreateSamplePayments() {
     var rnd = new Random();
+    var paymentStatuses = Enum.GetValues(typeof(PaymentStatus))
+      .Cast<PaymentStatus>().Select(s => s.ToString()).ToList();
     var payments = SampleUserIds.Take(5).Select(userId => new Payments {
       UserId = Guid.Parse(userId),
       PaymentDetails = SamplePaymentGuids.Select(paymentGuid => new PaymentDetails {
@@ -196,7 +203,7 @@ public class MongoDatabaseContext {
         PaymentId = Guid.Parse(paymentGuid),
         InvoiceId = Guid.Parse(SampleInvoiceGuids[rnd.Next(SampleInvoiceGuids.Count)]),
         Amount = rnd.NextDouble() * (500 - 50) + 50,
-        Status = PaymentStatus.Pending.ToString()
+        Status = paymentStatuses[rnd.Next(paymentStatuses.Count)]
       }).ToList()
     }).ToList();
     return payments;

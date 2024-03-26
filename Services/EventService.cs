@@ -173,7 +173,6 @@ public class EventService : IEventService {
         await _mongoDb.Events.InsertOneAsync(session, eventObj);
         await session.CommitTransactionAsync();
         return eventObj;
-
       }
       catch (MongoException ex) {
         await session.AbortTransactionAsync();
