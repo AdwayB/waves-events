@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using waves_events.Helpers;
 using waves_events.Interfaces;
 using waves_events.Models;
+using HttpMethods = waves_events.Models.HttpMethods;
 
 namespace waves_events.Controllers;
 
@@ -14,5 +16,7 @@ public class EventsController : ControllerBase {
     _eventService = eventService;
   }
   
+  [AuthorizeHttpMethods(AuthorizeUserEnum.Both, HttpMethods.GET, "")]
+  public async Task<IActionResult> GetEventById
   
 }
