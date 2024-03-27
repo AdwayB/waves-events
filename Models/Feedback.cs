@@ -9,10 +9,6 @@ public class Feedback {
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = string.Empty;
     
-    [BsonElement("feedbackId")]
-    [Required]
-    public Guid FeedbackId { get; set; } = Guid.Empty;
-    
     [BsonElement("eventId")]
     [Required]
     public Guid EventId { get; set; } = Guid.Empty;

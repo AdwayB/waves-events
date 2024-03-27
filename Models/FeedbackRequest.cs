@@ -2,10 +2,10 @@
 
 namespace waves_events.Models;
 
-public class UserFeedback {
+public class FeedbackRequest {
   [Required]
-  public Guid FeedbackId { get; set; } = Guid.Empty;
-
+  public Guid EventId { get; set; } = Guid.Empty;
+  
   [Required]
   public Guid UserId { get; set; } = Guid.Empty;
 

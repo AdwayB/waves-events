@@ -1,5 +1,4 @@
 ﻿using MongoDB.Driver;
-using waves_events.Helpers;
 using waves_events.Interfaces;
 using waves_events.Models;
 using ApplicationException = System.ApplicationException;
@@ -7,10 +6,10 @@ using ApplicationException = System.ApplicationException;
 namespace waves_events.Services;
 
 public class PaymentService : IPaymentService {
-  private readonly MongoDatabaseContext _mongoDb;
-  private readonly EventService _eventService;
+  private readonly IMongoDatabaseContext _mongoDb;
+  private readonly IEventService _eventService;
 
-  public PaymentService(MongoDatabaseContext mongoDb, EventService eventService) {
+  public PaymentService(IMongoDatabaseContext mongoDb, IEventService eventService) {
     _mongoDb = mongoDb;
     _eventService = eventService;
   }

@@ -117,11 +117,19 @@ public class MongoDatabaseContext {
       ]
     );
 
-    await Feedback.Indexes.CreateOneAsync(
-      new CreateIndexModel<Feedback>(
-        Builders<Feedback>.IndexKeys.Ascending(e => e.EventId),
-        new CreateIndexOptions { Unique = false }
-      )
+    await Feedback.Indexes.CreateManyAsync(
+      [
+        new CreateIndexModel<Feedback>(
+          Builders<Feedback>.IndexKeys.Ascending(e => e.EventId),
+          new CreateIndexOptions { Unique = false }
+        ),
+        new CreateIndexModel<Feedback>(
+          Builders<Feedback>.IndexKeys.Ascending("UserFeedback.FeedbackId")
+        ),
+        new CreateIndexModel<Feedback>(
+          Builders<Feedback>.IndexKeys.Ascending("UserFeedback.UserId")
+        )
+      ]
     );
 
     await Payments.Indexes.CreateManyAsync(
@@ -212,10 +220,10 @@ public class MongoDatabaseContext {
   private static List<Feedback> CreateSampleFeedbacks() {
     var rnd = new Random();
     var feedbacks = SampleEventGuids.Take(3).Select(eventGuid => new Feedback {
-      FeedbackId = new Guid(),
       EventId = Guid.Parse(eventGuid),
       UserFeedback = SampleUserIds.Take(5).Select(userId => new UserFeedback {
-        UserId = userId,
+        FeedbackId = Guid.NewGuid(),
+        UserId = Guid.Parse(userId),
         Rating = rnd.Next(1, 6),
         Comment = "This is an example comment."
       }).ToList()
