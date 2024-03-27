@@ -3,7 +3,9 @@ using dotenv.net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using waves_events.Helpers;
+using waves_events.Interfaces;
 using waves_events.Models;
+using waves_events.Services;
 
 DotEnv.Load();
 
@@ -17,6 +19,9 @@ builder
     .AddEnvironmentVariables();
 
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options => {
@@ -28,7 +33,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidAudience = builder.Configuration["Jwt:Audience"],
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.Zero,
+            RoleClaimType = "type"
         };
         options.Events = new JwtBearerEvents {
             OnTokenValidated = context => {  
@@ -49,6 +55,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 // builder.Services.AddSwaggerGen();
+
+builder.Services.AddSingleton<MongoDatabaseContext>();
 
 var app = builder.Build();
 
