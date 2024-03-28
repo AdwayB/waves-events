@@ -2,11 +2,15 @@
 
 namespace waves_events.Models;
 
-public class UserFeedback {
-  public Guid FeedbackId { get; set; } = Guid.Empty;
+public class UpdateFeedbackRequest {
+  [Required]
+  public string EventId { get; set; } = string.Empty;
+    
+  [Required]
+  public string FeedbackId { get; set; } = string.Empty;
 
   [Required]
-  public Guid UserId { get; set; } = Guid.Empty;
+  public string UserId { get; set; } = string.Empty;
 
   [CustomValidation(typeof(UserFeedback), "ValidateRating")]
   public int Rating { get; set; }

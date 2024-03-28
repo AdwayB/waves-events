@@ -232,7 +232,7 @@ public sealed class EventsController : ControllerBase {
   }
   
   [Authorize(Roles = "Admin")]
-  [HttpGet("create-event")]
+  [HttpPost("create-event")]
   public async Task<IActionResult> CreateEvent ([FromBody] Events request) {
     try {
       var userType = ValidateAndGetUserType();

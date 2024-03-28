@@ -5,9 +5,9 @@ namespace waves_events.Interfaces;
 public interface IFeedbackService {
   Task<Feedback?> GetFeedbackByEventAndUser(Guid eventId, Guid userId);
   Task<Feedback?> GetFeedbackById(Guid feedbackID);
-  Task<Feedback?> AddFeedback(Feedback feedbackObj);
-  Task<Feedback?> UpdateFeedback(Feedback feedbackObj);
-  Task<Feedback?> DeleteFeedback(Feedback feedbackObj);
+  Task<Feedback?> AddFeedback(UpdateFeedbackRequest feedbackObj);
+  Task<Feedback?> UpdateFeedback(UpdateFeedbackRequest feedbackObj);
+  Task<Guid?> DeleteFeedback(UpdateFeedbackRequest feedbackObj);
   Task<(List<UserFeedback>?, int)> GetFeedbacksByEventId(Guid eventId, int pageNumber, int pageSize);
-  Task<double> GetAverageRating(Guid eventId);
+  Task<double?> GetAverageRating(Guid eventId);
 }
