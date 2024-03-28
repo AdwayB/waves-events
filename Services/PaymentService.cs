@@ -57,7 +57,7 @@ public class PaymentService : IPaymentService {
 
       try {
         var eventResult = await _eventService.UpdateEvent(
-          new Events { EventId = eventObj.EventId, EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 }
+          new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 }
         );
         if (eventResult == null)
           throw new ApplicationException("Failed to update event.");
@@ -110,7 +110,7 @@ public class PaymentService : IPaymentService {
 
       try {
         var eventResult = await _eventService.UpdateEvent(
-          new Events { EventId = eventObj.EventId, EventRegisteredSeats = eventObj.EventRegisteredSeats - 1 }
+          new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats - 1 }
         );
 
         if (eventResult == null)

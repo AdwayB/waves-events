@@ -25,5 +25,7 @@ public class AuthorizeHttpMethodsAttribute : Attribute, IAuthorizeData, IActionH
 
   public IEnumerable<string> HttpMethods { get; }
   public int? Order => null;
-  public string Name => null;
+  public string? Name => null;
 }
+
+// [AuthorizeHttpMethod(UserType.Admin, HttpMethod.Get, "get-all-events")]

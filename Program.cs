@@ -19,6 +19,7 @@ builder
     .AddEnvironmentVariables();
 
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddSingleton<IMongoDatabaseContext, MongoDatabaseContext>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();

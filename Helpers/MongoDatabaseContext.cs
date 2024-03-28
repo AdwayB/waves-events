@@ -1,9 +1,10 @@
 ﻿using MongoDB.Driver;
+using waves_events.Interfaces;
 using waves_events.Models;
 
 namespace waves_events.Helpers;
 
-public class MongoDatabaseContext {
+public class MongoDatabaseContext : IMongoDatabaseContext {
   private readonly IMongoDatabase _database;
   private readonly MongoClient _client;
   private static readonly List<string> SampleEventGuids = [
@@ -148,7 +149,7 @@ public class MongoDatabaseContext {
   public async Task SeedDataAsync() {
     var emptyEvents = await _database.GetCollection<Events>("Events").CountDocumentsAsync(_ => true) == 0;
     var emptyPayments = await _database.GetCollection<Payments>("Payments").CountDocumentsAsync(_ => true) == 0;
-    var emptyFeedbacks = await _database.GetCollection<Feedback>("Feedbacks").CountDocumentsAsync(_ => true) == 0;
+    var emptyFeedbacks = await _database.GetCollection<Feedback>("Feedback").CountDocumentsAsync(_ => true) == 0;
     
     if (emptyEvents) {
       var events = CreateSampleEvents();
@@ -162,7 +163,7 @@ public class MongoDatabaseContext {
 
     if (emptyFeedbacks) {
       var feedbacks = CreateSampleFeedbacks();
-      await _database.GetCollection<Feedback>("Feedbacks").InsertManyAsync(feedbacks);
+      await _database.GetCollection<Feedback>("Feedback").InsertManyAsync(feedbacks);
     }
   }
   

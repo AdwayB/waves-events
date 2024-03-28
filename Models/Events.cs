@@ -4,6 +4,12 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace waves_events.Models;
 
+public enum EventStatusEnum {
+    Scheduled,
+    Cancelled,
+    Completed
+}
+
 public class Events {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
@@ -15,6 +21,8 @@ public class Events {
     
     [BsonElement("eventName")] 
     [Required]
+    [MinLength(3)]
+    [MaxLength(50)]
     public string EventName { get; set; } = string.Empty;
     
     [BsonElement("eventDescription")] 
@@ -60,7 +68,7 @@ public class Events {
     
     [BsonElement("eventStatus")] 
     [Required]
-    public string EventStatus { get; set; } = string.Empty;
+    public string EventStatus { get; set; } = EventStatusEnum.Scheduled.ToString();
     
     [BsonElement("eventCreatedBy")] 
     [Required]
