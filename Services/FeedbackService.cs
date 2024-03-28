@@ -1,5 +1,4 @@
-﻿using MongoDB.Bson;
-using MongoDB.Driver;
+﻿using MongoDB.Driver;
 using waves_events.Interfaces;
 using waves_events.Models;
 
@@ -14,7 +13,7 @@ public class FeedbackService : IFeedbackService {
     _eventService = eventService;
   }
 
-  public async Task<Feedback?> GetFeedbackByEventAndUser (Guid eventId, Guid userId) {
+  public async Task<UserFeedback?> GetFeedbackByEventAndUser (Guid eventId, Guid userId) {
     if (eventId == Guid.Empty || userId == Guid.Empty)
       throw new ApplicationException("Event and User ID are required");
 
@@ -23,7 +22,8 @@ public class FeedbackService : IFeedbackService {
         .Find(x => x.EventId == eventId && x.UserFeedback
           .Any(y => y.UserId == userId))
         .FirstOrDefaultAsync();
-      return result;
+
+      return result?.UserFeedback.Find(x => x.UserId == userId);
     }
     catch (Exception ex) {
       throw new ApplicationException(
@@ -31,7 +31,7 @@ public class FeedbackService : IFeedbackService {
     }
   }
 
-  public async Task<Feedback?> GetFeedbackById (Guid feedbackID) {
+  public async Task<UserFeedback?> GetFeedbackById (Guid feedbackID) {
     if (feedbackID == Guid.Empty)
       throw new ApplicationException("Feedback ID is required.");
 
@@ -40,14 +40,14 @@ public class FeedbackService : IFeedbackService {
         .Find(x => x.UserFeedback
           .Any(y => y.FeedbackId == feedbackID))
         .FirstOrDefaultAsync();
-      return result;
+      return result?.UserFeedback.Find(x => x.FeedbackId == feedbackID);
     }
     catch (Exception ex) {
       throw new ApplicationException($"An error occurred while getting feedback for FeedbackId {feedbackID}: {ex.Message}");
     }
   }
 
-  public async Task<Feedback?> AddFeedback(UpdateFeedbackRequest feedbackObj) {
+  public async Task<UserFeedback?> AddFeedback(AddFeedbackRequest feedbackObj) {
     if (!Guid.TryParse(feedbackObj.UserId, out var userId) || 
         !Guid.TryParse(feedbackObj.EventId, out var eventId) ||
         userId == Guid.Empty || eventId == Guid.Empty)
@@ -86,7 +86,7 @@ public class FeedbackService : IFeedbackService {
     }
   }
 
-  public async Task<Feedback?> UpdateFeedback (UpdateFeedbackRequest feedbackObj) {
+  public async Task<UserFeedback?> UpdateFeedback (UpdateFeedbackRequest feedbackObj) {
     if (!Guid.TryParse(feedbackObj.UserId, out var userId) || 
         !Guid.TryParse(feedbackObj.EventId, out var eventId) ||
         userId == Guid.Empty || eventId == Guid.Empty)
@@ -101,7 +101,7 @@ public class FeedbackService : IFeedbackService {
       session.StartTransaction();
 
       try {
-        var feedbackId = obj.UserFeedback.First().FeedbackId;
+        var feedbackId = obj.FeedbackId;
         
         var filter = Builders<Feedback>.Filter.And(
           Builders<Feedback>.Filter.Eq(x => x.EventId, eventId),
@@ -139,7 +139,7 @@ public class FeedbackService : IFeedbackService {
       session.StartTransaction();
 
       try {
-        var feedbackId = obj.UserFeedback.First().FeedbackId;
+        var feedbackId = obj.FeedbackId;
         
         var filter = Builders<Feedback>.Filter.ElemMatch(x => x.UserFeedback, y => y.FeedbackId == feedbackId);
         var result = await _mongoDb.Feedback.DeleteOneAsync(session, filter);
@@ -171,8 +171,8 @@ public class FeedbackService : IFeedbackService {
         throw new ApplicationException($"No feedback found for EventId {eventId}.");
 
       var userFeedbacks = feedbackObjects.SelectMany(x => x.UserFeedback).ToList();
-      var numberOfUserFeedbacks = await _mongoDb.Feedback.CountDocumentsAsync(x => x.EventId == eventId);
-      return (userFeedbacks, (int)numberOfUserFeedbacks);
+      var numberOfUserFeedbacks = userFeedbacks.Count;
+      return (userFeedbacks, numberOfUserFeedbacks);
     }
     catch (Exception ex) {
       throw new ApplicationException($"An error occurred when fetching feedback for Event Id {eventId}: {ex.Message}");
@@ -187,19 +187,13 @@ public class FeedbackService : IFeedbackService {
       throw new ApplicationException($"Event with ID {eventId} not found.");
 
     try {
-      var pipeline = new [] {
-        new BsonDocument("$match", new BsonDocument("EventId", eventId)),
-        new BsonDocument("$unwind", new BsonDocument("path", "$UserFeedback")),
-        new BsonDocument("$group", new BsonDocument {
-            { "_id", "$EventId" },
-            { "AverageRating", new BsonDocument("$avg", "$UserFeedback.Rating") }
-          })
-      };
+      var feedbackObjects = await _mongoDb.Feedback
+        .Find(x => x.EventId == eventId)
+        .ToListAsync();
 
-      var aggregateRating = _mongoDb.Feedback.Aggregate<FeedbackAverageRating>(pipeline);
-      var result = await aggregateRating.FirstOrDefaultAsync();
-
-      return result == null ? null : Math.Round(result.AverageRating, 2);
+      return feedbackObjects.Count == 0 
+      ? null
+      : feedbackObjects.SelectMany(x => x.UserFeedback.Select(y => y.Rating)).ToList().Average();
     }
     catch (Exception ex) {
       throw new ApplicationException($"An error occurred while getting average rating for event with ID {eventId}: {ex.Message}");

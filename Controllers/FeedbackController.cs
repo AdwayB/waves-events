@@ -15,18 +15,16 @@ public class FeedbackController : ControllerBase {
     _feedbackService = feedbackService;
   }
   
-  private UserType ValidateAndGetUserType () {
+  private void ValidateAndGetUserType () {
     var userDetails = this.GetUserDetailsFromContext();
 
     if (!userDetails.HasValue) 
       throw new UnauthorizedAccessException("User details not found. Check if user exists.");
 
-    var (userId, userType) = userDetails.Value;
+    var userId = userDetails.Value;
 
-    if (userId != Guid.Empty)
-      return userType;
-    
-    throw new UnauthorizedAccessException("User Id cannot be empty.");
+    if (userId.Item1 == Guid.Empty)
+      throw new UnauthorizedAccessException("User Id cannot be empty.");
   }
 
   [Authorize]
@@ -114,7 +112,7 @@ public class FeedbackController : ControllerBase {
         return BadRequest("The provided event ID is not in a valid format.");
       
       var response = await _feedbackService.GetAverageRating(eventGuid);
-      return Ok(response);
+      return response == null ? BadRequest("Unable to calculate average rating.") : Ok(response);
     }
     catch (Exception ex) {
       return StatusCode(500, $"An error occurred while getting average rating for event {eventId}: {ex.Message}");
@@ -123,7 +121,7 @@ public class FeedbackController : ControllerBase {
   
   [Authorize]
   [HttpPost("add-feedback")]
-  public async Task<IActionResult> AddFeedback ([FromBody] UpdateFeedbackRequest request) {
+  public async Task<IActionResult> AddFeedback ([FromBody] AddFeedbackRequest request) {
     try {
       ValidateAndGetUserType();
     }

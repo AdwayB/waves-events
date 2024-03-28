@@ -2,17 +2,14 @@
 
 namespace waves_events.Models;
 
-public class UpdateFeedbackRequest {
+public class AddFeedbackRequest {
   [Required]
   public string EventId { get; set; } = string.Empty;
-    
-  [Required]
-  public string FeedbackId { get; set; } = string.Empty;
 
   [Required]
   public string UserId { get; set; } = string.Empty;
 
-  [CustomValidation(typeof(UpdateFeedbackRequest), "ValidateRating")]
+  [CustomValidation(typeof(AddFeedbackRequest), "ValidateRating")]
   public int Rating { get; set; }
 
   public string Comment { get; set; } = string.Empty;

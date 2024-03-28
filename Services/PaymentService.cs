@@ -157,7 +157,7 @@ public class PaymentService : IPaymentService {
     }
   }
 
-  public async Task<(List<Events>, int)> GetRegistrationsByUser(Guid userId, int pageNumber, int pageSize) {
+  public async Task<(List<Events>?, int)> GetRegistrationsByUser(Guid userId, int pageNumber, int pageSize) {
     if (userId == Guid.Empty)
       throw new ApplicationException("Invalid User Id");
 
@@ -183,7 +183,7 @@ public class PaymentService : IPaymentService {
     }
   }
 
-  public async Task<(List<Events>, int)> GetCancelledRegistrationsByUser(Guid userId, int pageNumber, int pageSize) {
+  public async Task<(List<Events>?, int)> GetCancelledRegistrationsByUser(Guid userId, int pageNumber, int pageSize) {
     if (userId == Guid.Empty)
       throw new ApplicationException("Invalid User Id");
 
