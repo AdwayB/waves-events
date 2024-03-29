@@ -14,10 +14,9 @@ public class PaymentService : IPaymentService {
     _eventService = eventService;
   }
 
-  // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local
-  private async Task<Events> ValidateAndFindEventAsync(Guid? userId, Guid eventId) {
-    if (userId == Guid.Empty || eventId == Guid.Empty)
-      throw new ApplicationException("Invalid user or event ID");
+  private async Task<Events> ValidateAndFindEventAsync(Guid eventId) {
+    if (eventId == Guid.Empty)
+      throw new ApplicationException("Invalid event ID");
 
     var eventObj = await _eventService.GetEventById(eventId);
     if (eventObj == null)
@@ -35,8 +34,8 @@ public class PaymentService : IPaymentService {
     return (paymentObjectFilter, await _mongoDb.Payments.Find(paymentObjectFilter).FirstOrDefaultAsync());
   }
 
-  public async Task<Payments?> RegisterForEvent(Guid userId, Guid eventId) {
-    var eventObj = await ValidateAndFindEventAsync(userId, eventId);
+  public async Task<PaymentDetails?> RegisterForEvent(Guid userId, Guid eventId) {
+    var eventObj = await ValidateAndFindEventAsync(eventId);
 
     var availableSeats = eventObj.EventTotalSeats - eventObj.EventRegisteredSeats;
     if (availableSeats == 0)
@@ -47,21 +46,15 @@ public class PaymentService : IPaymentService {
     if (paymentObj != null) {
       if (paymentObj.PaymentDetails.Any(x => x.Status == PaymentStatus.Success.ToString()))
         throw new ApplicationException("User has already registered for this event");
-
-      if (paymentObj.PaymentDetails.Any(x => x.Status == PaymentStatus.Pending.ToString()))
-        throw new ApplicationException("User is in the process of registering for this event");
+      
+      // if (paymentObj.PaymentDetails.Any(x => x.Status == PaymentStatus.Pending.ToString()))
+      //   throw new ApplicationException("User is in the process of registering for this event");
     }
 
     using (var session = await _mongoDb.StartSessionAsync()) {
       session.StartTransaction();
 
       try {
-        var eventResult = await _eventService.UpdateEvent(
-          new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 }
-        );
-        if (eventResult == null)
-          throw new ApplicationException("Failed to update event.");
-
         if (paymentObj == null) {
           await _mongoDb.Payments.InsertOneAsync(
             session,
@@ -81,25 +74,39 @@ public class PaymentService : IPaymentService {
               ]
             }
           );
+          var eventResult = await _eventService.UpdateEvent(
+            new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 }
+          );
+          
+          if (eventResult == null)
+            throw new ApplicationException("Failed to update event.");
+          
           await session.CommitTransactionAsync();
-          return await _mongoDb.Payments.Find(x => x.UserId == userId).FirstOrDefaultAsync();
+          var response = await _mongoDb.Payments.Find(x => x.UserId == userId).FirstOrDefaultAsync();
+          return response.PaymentDetails.First(x => x.EventId == eventId);
         }
 
         var update = Builders<Payments>.Update.Set("PaymentDetails.$.Status", PaymentStatus.Success.ToString());
         await _mongoDb.Payments.UpdateOneAsync(session, paymentObjectFilter, update);
 
+        var result = await _eventService.UpdateEvent(
+          new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 }
+        );
+        if (result == null)
+          throw new ApplicationException("Failed to update event.");
+        
         await session.CommitTransactionAsync();
-        return paymentObj;
+        return await GetRegistrationsByUserAndEventId(userId, eventId);
       }
       catch (Exception ex) {
         await session.AbortTransactionAsync();
-        throw new ApplicationException("Failed to register for event. " + ex.Message);
+        throw new ApplicationException("Failed to register for event." + ex.Message);
       }
     }
   }
 
   public async Task<Payments?> CancelRegistration(Guid userId, Guid eventId) {
-    var eventObj = await ValidateAndFindEventAsync(userId, eventId);
+    var eventObj = await ValidateAndFindEventAsync(eventId);
     var (paymentObjectFilter, paymentObj) = await FindPaymentObjectAsync(userId, eventId);
 
     if (paymentObj == null)
@@ -109,28 +116,46 @@ public class PaymentService : IPaymentService {
       session.StartTransaction();
 
       try {
+        var update = Builders<Payments>.Update.Set("PaymentDetails.$.Status", PaymentStatus.Cancelled.ToString());
+        await _mongoDb.Payments.UpdateOneAsync(session, paymentObjectFilter, update);
+        
         var eventResult = await _eventService.UpdateEvent(
           new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats - 1 }
         );
 
         if (eventResult == null)
           throw new ApplicationException("Failed to update event.");
-
-        var update = Builders<Payments>.Update.Set("PaymentDetails.$.Status", PaymentStatus.Cancelled.ToString());
-        await _mongoDb.Payments.UpdateOneAsync(session, paymentObjectFilter, update);
-
+        
         await session.CommitTransactionAsync();
         return paymentObj;
       }
       catch (Exception ex) {
         await session.AbortTransactionAsync();
-        throw new ApplicationException("Failed to cancel registration. " + ex.Message);
+        throw new ApplicationException("Failed to cancel registration." + ex.Message);
       }
     }
   }
 
-  public async Task<(List<Guid>, int)> GetRegistrationsForEvent(Guid userId, Guid eventId, int pageNumber, int pageSize) {
-    await ValidateAndFindEventAsync(userId, eventId);
+  public async Task<PaymentDetails?> GetRegistrationsByUserAndEventId (Guid userId, Guid eventId) {
+    await ValidateAndFindEventAsync(eventId);
+
+    try {
+      var filter = Builders<Payments>.Filter.And(
+      Builders<Payments>.Filter.Eq(x => x.UserId, userId),
+      Builders<Payments>.Filter.ElemMatch(x => x.PaymentDetails, y => y.EventId == eventId)
+      );
+
+      var response = await _mongoDb.Payments.Find(filter).FirstOrDefaultAsync();
+      
+      return response.PaymentDetails.First(x => x.EventId == eventId);
+    }
+    catch (Exception ex) {
+      throw new ApplicationException($"Failed to get registration by user {userId} for event with id: {eventId}: " + ex.Message);
+    }
+  }
+
+  public async Task<(List<Guid>, int)> GetRegistrationsForEvent(Guid eventId, int pageNumber, int pageSize) {
+    await ValidateAndFindEventAsync(eventId);
 
     try {
       var numberOfRegisteredUsers = await _mongoDb.Payments.CountDocumentsAsync(
@@ -157,13 +182,11 @@ public class PaymentService : IPaymentService {
     }
   }
 
-  public async Task<(List<Events>?, int)> GetRegistrationsByUser(Guid userId, int pageNumber, int pageSize) {
+  public async Task<(List<Events>?, int?)> GetRegistrationsByUser(Guid userId, int pageNumber, int pageSize) {
     if (userId == Guid.Empty)
       throw new ApplicationException("Invalid User Id");
 
     try {
-      var numberOfRegisteredEvents = await _mongoDb.Payments.CountDocumentsAsync(x => x.UserId == userId);
-
       var paymentObjects = await _mongoDb
         .Payments.Find(x => x.UserId == userId)
         .Skip((pageNumber - 1) * pageSize)
@@ -173,10 +196,14 @@ public class PaymentService : IPaymentService {
       if (paymentObjects.Count == 0)
         throw new ApplicationException($"No registered eventIds found for user: {userId}.");
 
-      var eventIds = paymentObjects.SelectMany(x => x.PaymentDetails.Select(y => y.EventId)).ToList();
+      var eventIds = paymentObjects.SelectMany(x => x.PaymentDetails)
+        .Where(x => x.Status == PaymentStatus.Success.ToString())
+        .Select(x => x.EventId)
+        .ToList();
       var events = await _eventService.GetEventByIdList(eventIds);
+      var numberOfRegisteredEvents = events?.Count;
 
-      return (events, (int)numberOfRegisteredEvents);
+      return (events, numberOfRegisteredEvents);
     }
     catch (Exception ex) {
       throw new ApplicationException($"An error occurred while getting registrations for user: {userId}. {ex.Message}");

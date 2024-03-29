@@ -1,12 +1,12 @@
 ﻿namespace waves_events.Models;
 
 public class UserEventRegistrationsResponse {
-  private bool Cancelled { get; set; }
+  public bool Cancelled { get; set; }
   public int NumberOfRegistrations { get; set; }
   public int TotalPages { get; set; }
   public int PageNumber { get; set; }
   public int PageSize { get; set; }
-  public List<Guid> RegisteredEventIds { get; set; }
+  public List<Events>? RegisteredEventIds { get; set; }
 
   public UserEventRegistrationsResponse (
     bool cancelled,
@@ -14,7 +14,7 @@ public class UserEventRegistrationsResponse {
     int totalPages,
     int pageNumber,
     int pageSize,
-    List<Guid> registeredEventIds
+    List<Events>? registeredEventIds
   ) {
     Cancelled = cancelled;
     NumberOfRegistrations = numberOfRegistrations;
