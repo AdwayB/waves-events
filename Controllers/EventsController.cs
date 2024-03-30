@@ -8,7 +8,7 @@ namespace waves_events.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public sealed class EventsController : ControllerBase {
+public class EventsController : ControllerBase {
   private readonly IEventService _eventService;
   
   public EventsController (IEventService eventService) {

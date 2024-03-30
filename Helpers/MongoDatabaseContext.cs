@@ -83,6 +83,10 @@ public class MongoDatabaseContext : IMongoDatabaseContext {
     "7efd962f-1e6b-49d7-b424-3ea3c48ed76c",
     "b35f2b55-ff5c-4e3f-bf15-947bef2f0309"
   ];
+
+  private static readonly List<string> SampleEmails = [
+    "adwayby@gmail.com"
+  ];
   
   private static readonly List<double[]> SampleCoordinates = [
     [-73.935242, 40.730610], // New York
