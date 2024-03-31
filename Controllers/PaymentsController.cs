@@ -124,8 +124,8 @@ public class PaymentsController : ControllerBase {
   }
   
   [Authorize]
-  [HttpPost("register-for-event/{userId}/{eventId}")]
-  public async Task<IActionResult> RegisterForEvent (string userId, string eventId) {
+  [HttpPost("register-for-event")]
+  public async Task<IActionResult> RegisterForEvent ([FromBody] PaymentRequest request) {
     try {
       ValidateAndGetUserType();
     }
@@ -134,16 +134,16 @@ public class PaymentsController : ControllerBase {
     }
 
     try {
-      if (!Guid.TryParse(userId, out var userGuid)) 
+      if (!Guid.TryParse(request.UserId, out var userGuid)) 
         return BadRequest("The provided User ID is not in a valid format.");
-      if (!Guid.TryParse(eventId, out var eventGuid)) 
+      if (!Guid.TryParse(request.EventId, out var eventGuid)) 
         return BadRequest("The provided Event ID is not in a valid format.");
 
-      var response = await _paymentService.RegisterForEvent(userGuid, eventGuid);
+      var response = await _paymentService.RegisterForEvent(userGuid, request.UserEmail, eventGuid);
       return response != null ? Ok(response) : StatusCode(500, "An error occurred while registering for the event.");
     }
     catch (Exception ex) {
-      return StatusCode(500, $"An error occurred while registering for event {eventId} by user {userId}: {ex.Message}");
+      return StatusCode(500, $"An error occurred while registering for event {request.EventId} by user {request.UserId}: {ex.Message}");
     }
   }
   

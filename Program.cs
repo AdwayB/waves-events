@@ -19,10 +19,12 @@ builder
     .AddEnvironmentVariables();
 
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.Configure<EmailProviderConfig>(builder.Configuration.GetSection("BrevoConfig"));
 builder.Services.AddSingleton<IMongoDatabaseContext, MongoDatabaseContext>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();
+builder.Services.AddTransient<IMailService, MailService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options => {

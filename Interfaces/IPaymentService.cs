@@ -3,9 +3,10 @@
 namespace waves_events.Interfaces;
 
 public interface IPaymentService {
-  Task<PaymentDetails?> RegisterForEvent(Guid userId, Guid eventId);
+  Task<PaymentDetails?> RegisterForEvent(Guid userId, string userEmail, Guid eventId);
   Task<Payments?> CancelRegistration(Guid userId, Guid paymentId);
   Task<(List<Guid>, int)> GetRegistrationsForEvent(Guid eventId, int pageNumber, int pageSize);
+  Task<List<string>> GetRegisteredEmailsForEvent(Guid eventId);
   Task<(List<Events>?, int?)> GetRegistrationsByUser(Guid userId, int pageNumber, int pageSize);
   Task<PaymentDetails?> GetRegistrationsByUserAndEventId(Guid userId, Guid eventId);
   Task<(List<Events>?, int)> GetCancelledRegistrationsByUser(Guid userId, int pageNumber, int pageSize);

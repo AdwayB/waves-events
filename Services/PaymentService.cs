@@ -34,7 +34,7 @@ public class PaymentService : IPaymentService {
     return (paymentObjectFilter, await _mongoDb.Payments.Find(paymentObjectFilter).FirstOrDefaultAsync());
   }
 
-  public async Task<PaymentDetails?> RegisterForEvent(Guid userId, Guid eventId) {
+  public async Task<PaymentDetails?> RegisterForEvent(Guid userId, string userEmail, Guid eventId) {
     var eventObj = await ValidateAndFindEventAsync(eventId);
 
     var availableSeats = eventObj.EventTotalSeats - eventObj.EventRegisteredSeats;
@@ -61,6 +61,7 @@ public class PaymentService : IPaymentService {
             new Payments
             {
               UserId = userId,
+              UserEmail = userEmail,
               PaymentDetails =
               [
                 new PaymentDetails
@@ -180,6 +181,14 @@ public class PaymentService : IPaymentService {
         $"An error occurred while getting registrations for event: {eventId}. {ex.Message}"
       );
     }
+  }
+
+  public async Task<List<string>> GetRegisteredEmailsForEvent (Guid eventId) {
+    await ValidateAndFindEventAsync(eventId);
+
+    var paymentObjects = await _mongoDb.Payments.Find(x => x.PaymentDetails.Any(pd => pd.EventId == eventId))
+      .ToListAsync();
+    return paymentObjects.Select(x => x.UserEmail).ToList();
   }
 
   public async Task<(List<Events>?, int?)> GetRegistrationsByUser(Guid userId, int pageNumber, int pageSize) {

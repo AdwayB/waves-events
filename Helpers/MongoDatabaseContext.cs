@@ -211,6 +211,7 @@ public class MongoDatabaseContext : IMongoDatabaseContext {
       .Cast<PaymentStatus>().Select(s => s.ToString()).ToList();
     var payments = SampleUserIds.Take(5).Select(userId => new Payments {
       UserId = Guid.Parse(userId),
+      UserEmail = "adwayby@gmail.com",
       PaymentDetails = SamplePaymentGuids.Select(paymentGuid => new PaymentDetails {
         EventId = Guid.Parse(SampleEventGuids[rnd.Next(SampleEventGuids.Count)]),
         PaymentId = Guid.Parse(paymentGuid),
