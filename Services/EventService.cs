@@ -1,16 +1,17 @@
 ﻿using MongoDB.Driver;
 using MongoDB.Driver.GeoJsonObjectModel;
-using waves_events.Helpers;
 using waves_events.Interfaces;
 using waves_events.Models;
 
 namespace waves_events.Services;
 
 public class EventService : IEventService {
-  private readonly MongoDatabaseContext _mongoDb;
+  private readonly IMongoDatabaseContext _mongoDb;
+  private readonly IMailService _mailService;
 
-  public EventService(MongoDatabaseContext mongoDb) {
+  public EventService(IMongoDatabaseContext mongoDb, IMailService mailService) {
     _mongoDb = mongoDb;
+    _mailService = mailService;
   }
   
   private UpdateDefinition<Events> BuildUpdateDefinition(Events existingEvent, UpdateEventRequest updateEventRequest) {
@@ -250,7 +251,10 @@ public class EventService : IEventService {
         
         var result = await _mongoDb.Events.UpdateOneAsync(session, filter, updateDefinition);
         await session.CommitTransactionAsync();
-        return result.MatchedCount == 0 ? null : await _mongoDb.Events.Find(x => x.EventId == eventGuid).FirstOrDefaultAsync();
+
+        var resultObj = await GetEventById(eventGuid);
+        await _mailService.SendEventUpdatedEmail(resultObj ?? new Events());
+        return result.MatchedCount == 0 ? null : resultObj;
       }
       catch (MongoException ex) {
         await session.AbortTransactionAsync();
@@ -343,6 +347,7 @@ public class EventService : IEventService {
 
         if (obj == null) return null;
         var result = await _mongoDb.Events.DeleteOneAsync(session, x => x.EventId == eventId);
+        await _mailService.SendEventDeletedEmail(obj);
         await session.CommitTransactionAsync();
         return result.DeletedCount == 0 ? null : eventId;
       }

@@ -8,10 +8,12 @@ namespace waves_events.Services;
 public class PaymentService : IPaymentService {
   private readonly IMongoDatabaseContext _mongoDb;
   private readonly IEventService _eventService;
+  private readonly IMailService _mailService;
 
-  public PaymentService(IMongoDatabaseContext mongoDb, IEventService eventService) {
+  public PaymentService(IMongoDatabaseContext mongoDb, IEventService eventService, IMailService mailService) {
     _mongoDb = mongoDb;
     _eventService = eventService;
+    _mailService = mailService;
   }
 
   private async Task<Events> ValidateAndFindEventAsync(Guid eventId) {
@@ -78,12 +80,16 @@ public class PaymentService : IPaymentService {
           var eventResult = await _eventService.UpdateEvent(
             new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 }
           );
-          
-          if (eventResult == null)
+          if (eventResult == null) {
+            await session.AbortTransactionAsync();
             throw new ApplicationException("Failed to update event.");
+          }
           
           await session.CommitTransactionAsync();
           var response = await _mongoDb.Payments.Find(x => x.UserId == userId).FirstOrDefaultAsync();
+
+          await _mailService.SendEventRegistrationEmail(eventObj, response.UserEmail);
+          
           return response.PaymentDetails.First(x => x.EventId == eventId);
         }
 
@@ -93,11 +99,16 @@ public class PaymentService : IPaymentService {
         var result = await _eventService.UpdateEvent(
           new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 }
         );
-        if (result == null)
+        if (result == null) {
+          await session.AbortTransactionAsync();
           throw new ApplicationException("Failed to update event.");
+        }
         
         await session.CommitTransactionAsync();
-        return await GetRegistrationsByUserAndEventId(userId, eventId);
+        var registered =  await _mongoDb.Payments.Find(x => x.UserId == userId).FirstOrDefaultAsync();;
+        await _mailService.SendEventRegistrationEmail(eventObj, registered.UserEmail);
+
+        return registered.PaymentDetails.First(x => x.EventId == eventId);
       }
       catch (Exception ex) {
         await session.AbortTransactionAsync();
@@ -124,10 +135,13 @@ public class PaymentService : IPaymentService {
           new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats - 1 }
         );
 
-        if (eventResult == null)
+        if (eventResult == null) {
+          await session.AbortTransactionAsync();
           throw new ApplicationException("Failed to update event.");
+        }
         
         await session.CommitTransactionAsync();
+        await _mailService.SendEventCancellationEmail(eventObj, paymentObj.UserEmail);
         return paymentObj;
       }
       catch (Exception ex) {
