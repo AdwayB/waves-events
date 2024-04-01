@@ -105,7 +105,7 @@ public class PaymentService : IPaymentService {
         }
         
         await session.CommitTransactionAsync();
-        var registered =  await _mongoDb.Payments.Find(x => x.UserId == userId).FirstOrDefaultAsync();;
+        var registered =  await _mongoDb.Payments.Find(x => x.UserId == userId).FirstOrDefaultAsync();
         await _mailService.SendEventRegistrationEmail(eventObj, registered.UserEmail);
 
         return registered.PaymentDetails.First(x => x.EventId == eventId);
