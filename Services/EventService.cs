@@ -1,5 +1,6 @@
 ﻿using MongoDB.Driver;
 using MongoDB.Driver.GeoJsonObjectModel;
+using waves_events.Handlers;
 using waves_events.Interfaces;
 using waves_events.Models;
 
@@ -7,11 +8,11 @@ namespace waves_events.Services;
 
 public class EventService : IEventService {
   private readonly IMongoDatabaseContext _mongoDb;
-  private readonly IMailService _mailService;
+  private readonly IDomainEventDispatcher _eventDispatcher;
 
-  public EventService(IMongoDatabaseContext mongoDb, IMailService mailService) {
+  public EventService(IMongoDatabaseContext mongoDb, IDomainEventDispatcher eventDispatcher) {
     _mongoDb = mongoDb;
-    _mailService = mailService;
+    _eventDispatcher = eventDispatcher;
   }
   
   private UpdateDefinition<Events> BuildUpdateDefinition(Events existingEvent, UpdateEventRequest updateEventRequest) {
@@ -232,7 +233,7 @@ public class EventService : IEventService {
     }
   }
   
-  public async Task<Events?> UpdateEvent(UpdateEventRequest eventRequest) {
+  public async Task<Events?> UpdateEvent(UpdateEventRequest eventRequest, bool sendMail) {
     if (!Guid.TryParse(eventRequest.EventId, out var eventGuid)) 
       throw new ApplicationException($"No eventId provided.");
 
@@ -253,7 +254,8 @@ public class EventService : IEventService {
         await session.CommitTransactionAsync();
 
         var resultObj = await GetEventById(eventGuid);
-        await _mailService.SendEventUpdatedEmail(resultObj ?? new Events());
+        if (sendMail)
+            await _eventDispatcher.Dispatch(new EventUpdated(resultObj ?? new Events()));
         return result.MatchedCount == 0 ? null : resultObj;
       }
       catch (MongoException ex) {
@@ -347,7 +349,7 @@ public class EventService : IEventService {
 
         if (obj == null) return null;
         var result = await _mongoDb.Events.DeleteOneAsync(session, x => x.EventId == eventId);
-        await _mailService.SendEventDeletedEmail(obj);
+        await _eventDispatcher.Dispatch(new EventDeleted(obj ?? new Events()));
         await session.CommitTransactionAsync();
         return result.DeletedCount == 0 ? null : eventId;
       }

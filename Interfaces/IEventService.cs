@@ -12,7 +12,7 @@ public interface IEventService {
     Task<(List<Events>, int)> GetEventsWithLocation(double[] location, double radius, int pageNumber, int pageSize);
     Task<(List<Events>, int)> GetEventsWithDateRange (DateTime startDate, DateTime endDate, int pageNumber, int pageSize);
     Task<Events?> CreateEvent (Events eventObj);
-    Task<Events?> UpdateEvent (UpdateEventRequest eventObj);
+    Task<Events?> UpdateEvent (UpdateEventRequest eventObj, bool sendMail);
     Task<Events?> UpdateEventCollab (UpdateCollabRequest collabObj);
     Task<Events?> UpdateEventDiscounts (UpdateDiscountsRequest discountsObj);
     Task<Guid?> DeleteEvent (Guid eventId);

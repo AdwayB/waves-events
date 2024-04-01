@@ -260,7 +260,7 @@ public class EventsController : ControllerBase {
       if (userType is not UserType.Admin)
         return Unauthorized("Only admins can update events.");
       
-      var response = await _eventService.UpdateEvent(request);
+      var response = await _eventService.UpdateEvent(request, true);
       return response == null ? BadRequest("Event not found.") : Ok(response);
     }
     catch (UnauthorizedAccessException) {

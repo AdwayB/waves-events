@@ -1,4 +1,5 @@
 ﻿using MongoDB.Driver;
+using waves_events.Handlers;
 using waves_events.Interfaces;
 using waves_events.Models;
 using ApplicationException = System.ApplicationException;
@@ -8,12 +9,12 @@ namespace waves_events.Services;
 public class PaymentService : IPaymentService {
   private readonly IMongoDatabaseContext _mongoDb;
   private readonly IEventService _eventService;
-  private readonly IMailService _mailService;
+  private readonly IDomainEventDispatcher _eventDispatcher;
 
-  public PaymentService(IMongoDatabaseContext mongoDb, IEventService eventService, IMailService mailService) {
+  public PaymentService(IMongoDatabaseContext mongoDb, IEventService eventService, IDomainEventDispatcher eventDispatcher) {
     _mongoDb = mongoDb;
     _eventService = eventService;
-    _mailService = mailService;
+    _eventDispatcher = eventDispatcher;
   }
 
   private async Task<Events> ValidateAndFindEventAsync(Guid eventId) {
@@ -78,7 +79,8 @@ public class PaymentService : IPaymentService {
             }
           );
           var eventResult = await _eventService.UpdateEvent(
-            new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 }
+            new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 },
+            false
           );
           if (eventResult == null) {
             await session.AbortTransactionAsync();
@@ -88,7 +90,7 @@ public class PaymentService : IPaymentService {
           await session.CommitTransactionAsync();
           var response = await _mongoDb.Payments.Find(x => x.UserId == userId).FirstOrDefaultAsync();
 
-          await _mailService.SendEventRegistrationEmail(eventObj, response.UserEmail);
+          await _eventDispatcher.Dispatch(new EventRegistered(eventObj, response.UserEmail));
           
           return response.PaymentDetails.First(x => x.EventId == eventId);
         }
@@ -97,7 +99,8 @@ public class PaymentService : IPaymentService {
         await _mongoDb.Payments.UpdateOneAsync(session, paymentObjectFilter, update);
 
         var result = await _eventService.UpdateEvent(
-          new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 }
+          new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 },
+          false
         );
         if (result == null) {
           await session.AbortTransactionAsync();
@@ -106,7 +109,8 @@ public class PaymentService : IPaymentService {
         
         await session.CommitTransactionAsync();
         var registered =  await _mongoDb.Payments.Find(x => x.UserId == userId).FirstOrDefaultAsync();
-        await _mailService.SendEventRegistrationEmail(eventObj, registered.UserEmail);
+        
+        await _eventDispatcher.Dispatch(new EventRegistered(eventObj, registered.UserEmail));
 
         return registered.PaymentDetails.First(x => x.EventId == eventId);
       }
@@ -132,7 +136,8 @@ public class PaymentService : IPaymentService {
         await _mongoDb.Payments.UpdateOneAsync(session, paymentObjectFilter, update);
         
         var eventResult = await _eventService.UpdateEvent(
-          new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats - 1 }
+          new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats - 1 },
+          false
         );
 
         if (eventResult == null) {
@@ -141,7 +146,7 @@ public class PaymentService : IPaymentService {
         }
         
         await session.CommitTransactionAsync();
-        await _mailService.SendEventCancellationEmail(eventObj, paymentObj.UserEmail);
+        await _eventDispatcher.Dispatch(new EventRegistrationCancelled(eventObj, paymentObj.UserEmail));
         return paymentObj;
       }
       catch (Exception ex) {

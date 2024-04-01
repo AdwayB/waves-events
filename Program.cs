@@ -2,6 +2,7 @@ using System.Text;
 using dotenv.net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using waves_events.Handlers;
 using waves_events.Helpers;
 using waves_events.Interfaces;
 using waves_events.Models;
@@ -25,6 +26,12 @@ builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 builder.Services.AddTransient<IMailService, MailService>();
+builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+
+builder.Services.AddScoped<IDomainEventHandler<EventUpdated>, EventUpdatedHandler>();
+builder.Services.AddScoped<IDomainEventHandler<EventDeleted>, EventDeletedHandler>();
+builder.Services.AddScoped<IDomainEventHandler<EventRegistered>, EventRegisteredHandler>();
+builder.Services.AddScoped<IDomainEventHandler<EventRegistrationCancelled>, EventRegistrationCancelledHandler>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options => {

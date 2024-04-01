@@ -15,98 +15,87 @@ public class EmailTemplate {
       """
       <!DOCTYPE html>
       <html lang="en">
-        <head>
+      <head>
           <meta charset="UTF-8" />
           <meta http-equiv="X-UA-Compatible" content="IE=edge" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>Email Template</title>
           <style>
-            body {
-              font-family: "Work Sans", sans-serif;
-              margin: 0;
-              padding: 0;
-              background-color: #010320;
-              color: #c99fef;
-            }
-            pre {
-              font-family: unset;
-            }
-            h1,
-            h2,
-            h3,
-            h4,
-            h5,
-            h6 {
-              color: #e8e6e4;
-            }
-            .container {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              padding: 20px;
-              background-image: url("https://dim.mcusercontent.com/cs/4024b0f190264c150133796ae/images/58c2d062-ba76-e717-4479-30b219fb97b3.png?w=1200");
-              background-position: center center;
-              background-repeat: no-repeat;
-              background-size: cover;
-            }
-            .header,
-            .content,
-            .footer {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-            }
-            .email-body {
-              padding: 20px;
-              background-color: #010320a1;
-              border-radius: 32px;
-            }
-            .header img {
-              max-width: 100px;
-            }
-            .content {
-              padding: 20px;
-            }
-            .button {
-              background-color: #9d5ad7;
-              color: #22055a;
-              padding: 10px 20px;
-              text-decoration: none;
-              border-radius: 50px;
-              margin-top: 20px;
-            }
-            @media (max-width: 480px) {
-              .content h1,
-              .content p,
-              .content pre {
-                text-align: center;
+              body {
+                  font-family: "Google Sans", Roboto, RobotoDraft, Helvetica, Arial, sans-serif;
+                  margin: 0;
+                  padding: 0;
+                  background-color: #010320;
+                  color: #c99fef;
               }
-            }
+              pre {
+                  font-family: unset;
+                  font-size: 18px;
+                  color: #e8e6e4;
+              }
+              h1 {
+                  font-size: 36px;
+                  color: #e8e6e4;
+              }
+              .container {
+                  width: 100%;
+                  margin: 0 auto; 
+                  padding: 20px;
+                  background-image: url("https://dim.mcusercontent.com/cs/4024b0f190264c150133796ae/images/58c2d062-ba76-e717-4479-30b219fb97b3.png?w=1200");
+                  background-position: center center;
+                  background-repeat: no-repeat;
+                  background-size: cover;
+              }
+              .header img {
+                  max-width: 100px;
+              }
+              .email-body {
+                  width: 100%;
+                  max-width: 600px; 
+                  background-color: #010320a1;
+                  border-radius: 32px;
+                  padding: 20px;
+              }
+              .content {
+                  width: 100%;
+                  padding: 20px;
+              }
+              .button {
+                  background-color: #9d5ad7;
+                  color: #22055a;
+                  padding: 10px 20px;
+                  text-decoration: none;
+                  border-radius: 50px;
+                  margin-top: 20px;
+              }
           </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="email-body">
-              <header class="header">
-                <img
-                  src="https://mcusercontent.com/4024b0f190264c150133796ae/images/d7726037-e05c-ab20-a65c-5bbaefe83bf5.png"
-                  alt="Logo"
-                />
-              </header>
-              <div class="content">
-                <h1>{{heading}}</h1>
-                <pre>{{content}}</pre>
-              </div>
-            </div>
-          </div>
-        </body>
+      </head>
+      <body>
+          <table class="container" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                  <td align="center">
+                      <table class="email-body" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                              <td align="center">
+                                  <header class="header">
+                                      <img src="https://mcusercontent.com/4024b0f190264c150133796ae/images/d7726037-e05c-ab20-a65c-5bbaefe83bf5.png" alt="Logo" />
+                                  </header>
+                              </td>
+                          </tr>
+                          <tr>
+                              <td class="content" align="center">
+                                  <h1>{0}</h1>
+                                  <pre>{1}</pre>
+                              </td>
+                          </tr>
+                      </table>
+                  </td>
+              </tr>
+          </table>
+      </body>
       </html>
       """;
     
-    HTMLTemplate = HTMLTemplate.Replace("{{heading}}", heading).Replace("{{content}}", content);
-    return HTMLTemplate;
+    return HTMLTemplate.Replace("{0}", heading).Replace("{1}", content);
   }
 
   public static string GetHTMLContent (Events eventObj, EmailType emailType) {
@@ -115,16 +104,17 @@ public class EmailTemplate {
 
     return emailType switch {
       EmailType.Registered =>
-        $"Congratulations! You have successfully registered for the event {eventObj.EventName}, scheduled for {startDate}. Please check the event details for more information.",
-      EmailType.RegistrationCancelled => $"Confirmed! Your registration for the event {eventObj.EventName} has been cancelled.",
+        $"Congratulations! You have successfully registered for the event {eventObj.EventName} with ID {eventObj.EventId}, scheduled for {startDate}. Please check the event details for more information.",
+      EmailType.RegistrationCancelled => $"Confirmed! Your registration for the event {eventObj.EventName} with ID {eventObj.EventId} has been cancelled.",
       EmailType.EventUpdated =>
-        $"The event {eventObj.EventName} has been updated. Following are the essentials, in case they have been updated:\n Event Start Date: {startDate}\n Event End Date: {endDate}\n Venue/Event Age Restriction: {eventObj.EventAgeRestriction}.\n Please check the event details for more information.",
-      EmailType.EventDeleted => $"The event {eventObj.EventName} has been deleted. The event was scheduled to happen between {startDate} and {endDate}",
+        $"The event {eventObj.EventName} with ID {eventObj.EventId} has been updated. Following are the essentials, in case they have been updated:\n Event Start Date: {startDate}\n Event End Date: {endDate}\n Venue/Event Age Restriction: {eventObj.EventAgeRestriction}.\n Please check the event details for more information.",
+      EmailType.EventDeleted => $"The event {eventObj.EventName} with ID {eventObj.EventId} has been deleted. The event was scheduled to happen between {startDate} and {endDate}",
       _ => "Error in template selection. Please contact the administrator."
     };
   }
   
   public static string GetHTMLHeading (Events eventObj, EmailType emailType) {
+
     return emailType switch {
       EmailType.Registered => $"Waves: Successfully Registered for {eventObj.EventName}!",
       EmailType.RegistrationCancelled => $"Waves: Registration Cancelled for {eventObj.EventName}!",
