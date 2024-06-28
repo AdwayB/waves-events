@@ -206,16 +206,14 @@ public class EventService : IEventService {
   }
 
   public async Task<Events?> CreateEvent(Events eventObj) {
-    if (eventObj.EventId != Guid.Empty) {
-      throw new ApplicationException($"EventId cannot be set by client.");
-    }
     eventObj.EventId = Guid.NewGuid();
 
     using (var session = await _mongoDb.StartSessionAsync()) {
       session.StartTransaction();
       try {
         var obj = await _mongoDb.Events
-          .Find(session, e => e.EventId == eventObj.EventId)
+          .Find(session, e => e.EventCreatedBy == eventObj.EventCreatedBy && 
+                              e.EventStartDate == eventObj.EventStartDate && e.EventEndDate == eventObj.EventEndDate)
           .FirstOrDefaultAsync();
 
         if (obj != null) 
