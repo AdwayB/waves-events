@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using waves_events.Handlers;
 using waves_events.Helpers;
 using waves_events.Interfaces;
+using waves_events.Middleware;
 using waves_events.Models;
 using waves_events.Services;
 
@@ -66,12 +67,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
+builder.Services.AddSwaggerGen(c => {
   c.SwaggerDoc("v1", new OpenApiInfo { Title = "Waves Events API", Version = "v1" });
   var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
   var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
   c.IncludeXmlComments(xmlPath);
+});
+
+builder.Services.AddCors(options => {
+  options.AddPolicy("AllowLocalhost3000", policyBuilder => {
+    policyBuilder.WithOrigins("http://localhost:3000")
+      .AllowAnyHeader()
+      .AllowAnyMethod()
+      .AllowCredentials();
+  });
 });
 
 builder.Services.AddSingleton<MongoDatabaseContext>();
@@ -89,6 +98,8 @@ if (app.Environment.IsDevelopment()) {
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowLocalhost3000");
+app.UseMiddleware<AuthInterceptor>();
 app.UseAuthentication(); // Use authentication
 app.UseAuthorization();
 
