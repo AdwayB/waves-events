@@ -222,7 +222,7 @@ public class PaymentService : IPaymentService {
         .ToListAsync();
 
       if (paymentObjects.Count == 0)
-        throw new ApplicationException($"No registered eventIds found for user: {userId}.");
+        return ([], 0);
 
       var eventIds = paymentObjects.SelectMany(x => x.PaymentDetails)
         .Where(x => x.Status == PaymentStatus.Success.ToString())
