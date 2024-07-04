@@ -6,7 +6,7 @@ public class UserEventRegistrationsResponse {
   public int TotalPages { get; set; }
   public int PageNumber { get; set; }
   public int PageSize { get; set; }
-  public List<Events>? RegisteredEventIds { get; set; }
+  public List<Events>? RegisteredEvents { get; set; }
 
   public UserEventRegistrationsResponse (
     bool cancelled,
@@ -14,13 +14,13 @@ public class UserEventRegistrationsResponse {
     int totalPages,
     int pageNumber,
     int pageSize,
-    List<Events>? registeredEventIds
+    List<Events>? registeredEvents
   ) {
     Cancelled = cancelled;
     NumberOfRegistrations = numberOfRegistrations;
     TotalPages = totalPages;
     PageNumber = pageNumber;
     PageSize = pageSize;
-    RegisteredEventIds = registeredEventIds;
+    RegisteredEvents = registeredEvents;
   }
 }

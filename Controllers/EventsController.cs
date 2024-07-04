@@ -52,7 +52,7 @@ public class EventsController : ControllerBase {
   }
   
   [Authorize]
-  [HttpGet("get-event-by-id-list")]
+  [HttpPost("get-event-by-id-list")]
   public async Task<IActionResult> GetEventByIdList ([FromBody] List<string> ids) {
     try {
       ValidateAndGetUserType();
