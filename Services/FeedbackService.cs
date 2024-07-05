@@ -168,7 +168,7 @@ public class FeedbackService : IFeedbackService {
         .ToListAsync();
 
       if (feedbackObjects.Count == 0)
-        throw new ApplicationException($"No feedback found for EventId {eventId}.");
+        return ([], 0);
 
       var userFeedbacks = feedbackObjects.SelectMany(x => x.UserFeedback).ToList();
       var numberOfUserFeedbacks = userFeedbacks.Count;
