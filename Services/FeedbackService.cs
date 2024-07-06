@@ -192,7 +192,7 @@ public class FeedbackService : IFeedbackService {
         .ToListAsync();
 
       return feedbackObjects.Count == 0 
-      ? null
+      ? 0
       : feedbackObjects.SelectMany(x => x.UserFeedback.Select(y => y.Rating)).ToList().Average();
     }
     catch (Exception ex) {

@@ -89,7 +89,7 @@ public class FeedbackController : ControllerBase {
         return BadRequest("The provided user ID is not in a valid format.");
       
       var response = await _feedbackService.GetFeedbackByEventAndUser(eventGuid, userGuid);
-      return response != null ? Ok(response) : BadRequest("Feedback not found. Please check the ID provided.");
+      return Ok(response);
     }
     catch (Exception ex) {
       return StatusCode(500, $"An error occurred while getting feedback by user {userId} for event {eventId}" +
