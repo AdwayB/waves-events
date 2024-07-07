@@ -189,7 +189,7 @@ public class PaymentService : IPaymentService {
         .ToListAsync();
 
       if (paymentObjects.Count == 0)
-        throw new ApplicationException($"No registered userIds found for event: {eventId}.");
+        return ([], 0);
 
       var userIds = paymentObjects.Select(x => x.UserId).ToList();
 
