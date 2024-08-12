@@ -30,7 +30,6 @@ public class Events {
     public string EventDescription { get; set; } = string.Empty;
     
     [BsonElement("eventBackgroundImage")] 
-    [Required]
     public string EventBackgroundImage { get; set; } = string.Empty; // Upload a Base64 String
     
     [BsonElement("eventTotalSeats")] 
