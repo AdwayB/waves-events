@@ -31,6 +31,7 @@ builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 builder.Services.AddTransient<IMailService, MailService>();
 builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
 
+builder.Services.AddScoped<IDomainEventHandler<EventCreated>, EventCreatedHandler>();
 builder.Services.AddScoped<IDomainEventHandler<EventUpdated>, EventUpdatedHandler>();
 builder.Services.AddScoped<IDomainEventHandler<EventDeleted>, EventDeletedHandler>();
 builder.Services.AddScoped<IDomainEventHandler<EventRegistered>, EventRegisteredHandler>();
@@ -107,7 +108,7 @@ app.MapControllers();
 
 try {
     var mongoContext = app.Services.GetRequiredService<MongoDatabaseContext>();
-    await mongoContext.EnsureIndexesCreatedAsync();
+    await mongoContext.EnsureIndexesCreatedAsync(); 
     await mongoContext.SeedDataAsync();
 }
 catch (Exception ex) {
@@ -116,3 +117,4 @@ catch (Exception ex) {
 }
 
 app.Run();
+  

@@ -3,6 +3,7 @@
 namespace waves_events.Helpers;
 
 public enum EmailType {
+  Created,
   Registered, 
   RegistrationCancelled,
   EventUpdated,
@@ -103,6 +104,8 @@ public class EmailTemplate {
     var endDate = $"{eventObj.EventEndDate.Day}/{eventObj.EventEndDate.Month}/{eventObj.EventEndDate.Year}";
 
     return emailType switch {
+      EmailType.Created =>
+        $"Congratulations! You have successfully created the event {eventObj.EventName} with ID {eventObj.EventId}, scheduled for {startDate}.",
       EmailType.Registered =>
         $"Congratulations! You have successfully registered for the event {eventObj.EventName} with ID {eventObj.EventId}, scheduled for {startDate}. Please check the event details for more information.",
       EmailType.RegistrationCancelled => $"Confirmed! Your registration for the event {eventObj.EventName} with ID {eventObj.EventId} has been cancelled.",
@@ -116,6 +119,7 @@ public class EmailTemplate {
   public static string GetHTMLHeading (Events eventObj, EmailType emailType) {
 
     return emailType switch {
+      EmailType.Created => $"Waves: Successfully Created {eventObj.EventName}!",
       EmailType.Registered => $"Waves: Successfully Registered for {eventObj.EventName}!",
       EmailType.RegistrationCancelled => $"Waves: Registration Cancelled for {eventObj.EventName}!",
       EmailType.EventUpdated => $"Waves: Event Details Updated for {eventObj.EventName}!",
