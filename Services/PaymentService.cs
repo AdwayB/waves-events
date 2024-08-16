@@ -56,7 +56,8 @@ public class PaymentService : IPaymentService {
 
     using (var session = await _mongoDb.StartSessionAsync()) {
       session.StartTransaction();
-
+      var newEventObj = await ValidateAndFindEventAsync(eventId);
+      
       try {
         if (paymentObj == null) {
           await _mongoDb.Payments.InsertOneAsync(
@@ -79,7 +80,7 @@ public class PaymentService : IPaymentService {
             }
           );
           var eventResult = await _eventService.UpdateEvent(
-            new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 },
+            new UpdateEventRequest { EventId = newEventObj.EventId.ToString(), EventRegisteredSeats = newEventObj.EventRegisteredSeats + 1 },
             false
           );
           if (eventResult == null) {
@@ -90,7 +91,7 @@ public class PaymentService : IPaymentService {
           await session.CommitTransactionAsync();
           var response = await _mongoDb.Payments.Find(x => x.UserId == userId).FirstOrDefaultAsync();
 
-          await _eventDispatcher.Dispatch(new EventRegistered(eventObj, response.UserEmail));
+          await _eventDispatcher.Dispatch(new EventRegistered(newEventObj, response.UserEmail));
           
           return response.PaymentDetails.First(x => x.EventId == eventId);
         }
@@ -99,7 +100,7 @@ public class PaymentService : IPaymentService {
         await _mongoDb.Payments.UpdateOneAsync(session, paymentObjectFilter, update);
 
         var result = await _eventService.UpdateEvent(
-          new UpdateEventRequest { EventId = eventObj.EventId.ToString(), EventRegisteredSeats = eventObj.EventRegisteredSeats + 1 },
+          new UpdateEventRequest { EventId = newEventObj.EventId.ToString(), EventRegisteredSeats = newEventObj.EventRegisteredSeats + 1 },
           false
         );
         if (result == null) {
@@ -110,7 +111,7 @@ public class PaymentService : IPaymentService {
         await session.CommitTransactionAsync();
         var registered =  await _mongoDb.Payments.Find(x => x.UserId == userId).FirstOrDefaultAsync();
         
-        await _eventDispatcher.Dispatch(new EventRegistered(eventObj, registered.UserEmail));
+        await _eventDispatcher.Dispatch(new EventRegistered(newEventObj, registered.UserEmail));
 
         return registered.PaymentDetails.First(x => x.EventId == eventId);
       }
