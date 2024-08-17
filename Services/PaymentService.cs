@@ -116,7 +116,9 @@ public class PaymentService : IPaymentService {
         return registered.PaymentDetails.First(x => x.EventId == eventId);
       }
       catch (Exception ex) {
-        await session.AbortTransactionAsync();
+        if (session.IsInTransaction) {
+          await session.AbortTransactionAsync();
+        }
         throw new ApplicationException("Failed to register for event." + ex.Message);
       }
     }
@@ -151,7 +153,9 @@ public class PaymentService : IPaymentService {
         return paymentObj;
       }
       catch (Exception ex) {
-        await session.AbortTransactionAsync();
+        if (session.IsInTransaction) {
+          await session.AbortTransactionAsync();
+        }
         throw new ApplicationException("Failed to cancel registration." + ex.Message);
       }
     }
