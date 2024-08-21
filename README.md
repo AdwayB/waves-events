@@ -23,3 +23,8 @@ It is designed to be performant, scalable and provides multiple endpoints to fet
 ### Mail Notifications
 - **Event-Driven Notifications**: Action-triggered email notifications for event registrations, updates, deletions and cancellations.
 - **Customizable Templates**: Tailored email content for various event-related notifications.
+
+## Other `waves-ems` Components
+- [**`waves`**](https://github.com/AdwayB/waves)
+- [**`waves-server`**](https://github.com/AdwayB/waves-server)
+- [**`waves-users`**](https://github.com/AdwayB/waves-users)
