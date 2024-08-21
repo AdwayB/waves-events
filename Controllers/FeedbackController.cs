@@ -73,7 +73,7 @@ public class FeedbackController : ControllerBase {
   }
   
   [Authorize]
-  [HttpGet("get-feedback-by-event-and-user/{eventID}/{userId}")]
+  [HttpGet("get-feedback-by-event-and-user/{eventId}/{userId}")]
   public async Task<IActionResult> GetFeedbackByEventAndUser (string eventId, string userId) {
     try {
       ValidateAndGetUserType();
@@ -98,7 +98,7 @@ public class FeedbackController : ControllerBase {
   }
   
   [Authorize]
-  [HttpGet("get-average-rating/{eventID}")]
+  [HttpGet("get-average-rating/{eventId}")]
   public async Task<IActionResult> GetAverageRating (string eventId) {
     try {
       ValidateAndGetUserType();
