@@ -1,20 +1,28 @@
-﻿using MongoDB.Driver;
+﻿using Microsoft.AspNetCore.SignalR;
+using MongoDB.Driver;
 using MongoDB.Driver.GeoJsonObjectModel;
 using waves_events.Handlers;
+using waves_events.Helpers;
 using waves_events.Interfaces;
 using waves_events.Models;
 
 namespace waves_events.Services;
 
+using System.Collections.Concurrent;
+using System.ComponentModel.DataAnnotations;
+using ClosedXML.Excel;
+
 public class EventService : IEventService {
   private readonly IMongoDatabaseContext _mongoDb;
   private readonly IDomainEventDispatcher _eventDispatcher;
+  private readonly IHubContext<ProgressHub> _hubContext;
 
-  public EventService(IMongoDatabaseContext mongoDb, IDomainEventDispatcher eventDispatcher) {
+  public EventService (IMongoDatabaseContext mongoDb, IDomainEventDispatcher eventDispatcher, IHubContext<ProgressHub> hubContext) {
     _mongoDb = mongoDb;
     _eventDispatcher = eventDispatcher;
+    _hubContext = hubContext;
   }
-  
+
   private UpdateDefinition<Events> BuildUpdateDefinition(Events existingEvent, UpdateEventRequest updateEventRequest) {
     var updateDefinitionBuilder = new List<UpdateDefinition<Events>>();
     var requestProperties = typeof(UpdateEventRequest).GetProperties();
@@ -22,7 +30,7 @@ public class EventService : IEventService {
     foreach (var property in requestProperties) {
       var requestValue = property.GetValue(updateEventRequest);
       var eventProperty = typeof(Events).GetProperty(property.Name);
-        
+
       if (eventProperty == null)
         continue;
 
@@ -34,7 +42,7 @@ public class EventService : IEventService {
 
       if (requestValue.Equals(eventValue))
         continue;
-      
+
       switch (property.Name) {
         case "EventLocation" when requestValue is Location { Coordinates: not { Length: 2 } }:
         case "EventCollab" when requestValue is List<Guid> { Count: 0 }:
@@ -53,7 +61,7 @@ public class EventService : IEventService {
   public async Task<Events?> GetEventById(Guid id) {
     if (id == Guid.Empty)
       throw new ApplicationException("Event ID cannot be empty.");
-    
+
     try {
       return await _mongoDb.Events.Find(x => x.EventId == id).FirstOrDefaultAsync();
     }
@@ -87,7 +95,7 @@ public class EventService : IEventService {
         .Skip((pageNumber - 1) * pageSize)
         .Limit(pageSize)
         .ToListAsync();
-      
+
       return (response, (int)numberOfRecords);
     }
     catch (Exception ex) {
@@ -98,7 +106,7 @@ public class EventService : IEventService {
   public async Task<(List<Events>, int)> GetEventsWithGenre(string genre, int pageNumber, int pageSize) {
     if (genre.Length == 0)
       throw new ApplicationException("Genre cannot be empty.");
-    
+
     try {
       var numberOfRecords = await _mongoDb.Events.Find(x => x.EventGenres.Contains(genre)).CountDocumentsAsync();
       var response = await _mongoDb
@@ -117,7 +125,7 @@ public class EventService : IEventService {
   public async Task<(List<Events>, int)> GetEventsByArtist(Guid artistId, int pageNumber, int pageSize) {
     if (artistId == Guid.Empty)
       throw new ApplicationException("Artist ID cannot be empty.");
-    
+
     try {
       var numberOfRecords = await _mongoDb.Events.Find(x => x.EventCreatedBy.Equals(artistId)).CountDocumentsAsync();
       var response = await _mongoDb
@@ -132,7 +140,7 @@ public class EventService : IEventService {
       throw new ApplicationException("An error occurred while fetching events: " + ex.Message);
     }
   }
-  
+
   public async Task<(List<Events>, int)> GetEventsByArtistCollab(Guid artistId, int pageNumber, int pageSize) {
     try {
       var numberOfRecords = await _mongoDb.Events.Find(x => x.EventCollab.Contains(artistId)).CountDocumentsAsync();
@@ -148,7 +156,7 @@ public class EventService : IEventService {
       throw new ApplicationException("An error occurred while fetching events: " + ex.Message);
     }
   }
-  
+
   public async Task<(List<Events>, int)> GetEventsWithLocation(double[] location, double radius, int pageNumber, int pageSize) {
     if (location.Length != 2)
       throw new ApplicationException("Location array must be of the form [longitude, latitude].");
@@ -159,7 +167,7 @@ public class EventService : IEventService {
       var radiusInRadians = radius / 6371;
       var locationPoint = new GeoJsonPoint<GeoJson2DGeographicCoordinates>(
         new GeoJson2DGeographicCoordinates(location[0], location[1]));
-        
+
       var filter = Builders<Events>.Filter.GeoWithinCenterSphere(
         field: e => e.EventLocation.Coordinates,
         x: locationPoint.Coordinates.Longitude,
@@ -190,7 +198,7 @@ public class EventService : IEventService {
         Builders<Events>.Filter.Gte(e => e.EventStartDate, startDate),
         Builders<Events>.Filter.Lte(e => e.EventEndDate, endDate)
       );
-      
+
       var numberOfRecords = await _mongoDb.Events.Find(dateFilter).CountDocumentsAsync();
       var response = await _mongoDb
         .Events.Find(dateFilter)
@@ -212,13 +220,14 @@ public class EventService : IEventService {
       session.StartTransaction();
       try {
         var obj = await _mongoDb.Events
-          .Find(session, e => e.EventCreatedBy == eventObj.EventCreatedBy && 
-                              e.EventStartDate == eventObj.EventStartDate && e.EventEndDate == eventObj.EventEndDate)
+          .Find(session,
+            e => e.EventCreatedBy == eventObj.EventCreatedBy &&
+                 e.EventStartDate == eventObj.EventStartDate && e.EventEndDate == eventObj.EventEndDate)
           .FirstOrDefaultAsync();
 
-        if (obj != null) 
+        if (obj != null)
           return null;
-        
+
         await _mongoDb.Events.InsertOneAsync(session, eventObj);
         await session.CommitTransactionAsync();
         await _eventDispatcher.Dispatch(new EventCreated(eventObj));
@@ -231,9 +240,9 @@ public class EventService : IEventService {
       }
     }
   }
-  
+
   public async Task<Events?> UpdateEvent(UpdateEventRequest eventRequest, bool sendMail) {
-    if (!Guid.TryParse(eventRequest.EventId, out var eventGuid)) 
+    if (!Guid.TryParse(eventRequest.EventId, out var eventGuid))
       throw new ApplicationException($"No eventId provided.");
 
     using (var session = await _mongoDb.StartSessionAsync()) {
@@ -243,12 +252,12 @@ public class EventService : IEventService {
           .Find(session, e => e.EventId == eventGuid)
           .FirstOrDefaultAsync();
 
-        if (obj == null) 
+        if (obj == null)
           return null;
-        
+
         var filter = Builders<Events>.Filter.Eq(e => e.EventId, eventGuid);
         var updateDefinition = BuildUpdateDefinition(obj, eventRequest);
-        
+
         var result = await _mongoDb.Events.UpdateOneAsync(session, filter, updateDefinition);
         await session.CommitTransactionAsync();
 
@@ -268,7 +277,7 @@ public class EventService : IEventService {
   public async Task<Events?> UpdateEventCollab (UpdateCollabRequest collabObj) {
     if(!Guid.TryParse(collabObj.EventId, out var eventId))
       throw new ApplicationException($"Invalid eventId provided.");
-    
+
     if (eventId == Guid.Empty)
       throw new ApplicationException($"No eventId provided.");
 
@@ -286,9 +295,9 @@ public class EventService : IEventService {
             if (Guid.TryParse(id, out var collabGuid))
               collabGuids.Add(collabGuid);
         }
-        
-        var result = await _mongoDb.Events.UpdateOneAsync(session, 
-          x => x.EventId == eventId, 
+
+        var result = await _mongoDb.Events.UpdateOneAsync(session,
+          x => x.EventId == eventId,
           Builders<Events>.Update.Set(x => x.EventCollab, collabGuids)
           );
         await session.CommitTransactionAsync();
@@ -302,11 +311,11 @@ public class EventService : IEventService {
       }
     }
   }
-  
+
   public async Task<Events?> UpdateEventDiscounts (UpdateDiscountsRequest discountsObj) {
     if(!Guid.TryParse(discountsObj.EventId, out var eventId))
       throw new ApplicationException($"Invalid eventId provided.");
-    
+
     if (eventId == Guid.Empty)
       throw new ApplicationException($"No eventId provided.");
 
@@ -318,13 +327,13 @@ public class EventService : IEventService {
 
         if (obj == null)
           return null;
-        
-        var result = await _mongoDb.Events.UpdateOneAsync(session, 
-          x => x.EventId == eventId, 
+
+        var result = await _mongoDb.Events.UpdateOneAsync(session,
+          x => x.EventId == eventId,
           Builders<Events>.Update.Set(x => x.EventDiscounts, discountsObj.EventDiscounts)
         );
         await session.CommitTransactionAsync();
-        
+
         return result.MatchedCount == 0 ? null : await _mongoDb.Events.Find(x => x.EventId == eventId).FirstOrDefaultAsync();
       }
       catch (MongoException ex) {
@@ -334,7 +343,7 @@ public class EventService : IEventService {
       }
     }
   }
-  
+
   public async Task<Guid?> DeleteEvent(Guid eventId) {
     if (eventId == Guid.Empty)
       throw new ApplicationException($"No eventId provided.");
@@ -346,9 +355,11 @@ public class EventService : IEventService {
           .Find(session, e => e.EventId == eventId)
           .FirstOrDefaultAsync();
 
-        if (obj == null) return null;
+        if (obj == null)
+          return null;
+
         var result = await _mongoDb.Events.DeleteOneAsync(session, x => x.EventId == eventId);
-        await _eventDispatcher.Dispatch(new EventDeleted(obj ?? new Events()));
+        await _eventDispatcher.Dispatch(new EventDeleted(obj));
         await session.CommitTransactionAsync();
         return result.DeletedCount == 0 ? null : eventId;
       }
@@ -357,6 +368,97 @@ public class EventService : IEventService {
         throw new ApplicationException($"An error occurred while deleting Event: {ex.Message}\n" +
                                        $"{ex.StackTrace}");
       }
+    }
+  }
+
+  public async Task<(int SuccessCount, List<string> FailedEvents)> BulkUploadEvents (IFormFile? file, Guid userId, string connectionId) {
+    if (file == null || file.Length == 0)
+      throw new ApplicationException("No file uploaded.");
+
+    var eventsList = new ConcurrentBag<Events>();
+    var failedEvents = new ConcurrentBag<string>();
+
+    try {
+      using (var stream = new MemoryStream()) {
+        await file.CopyToAsync(stream);
+
+        using (var workbook = new XLWorkbook(stream)) {
+          var worksheet = workbook.Worksheet(1);
+          var rows = worksheet.RangeUsed().RowsUsed().Skip(1).ToList();
+          var totalRows = rows.Count;
+
+          if (totalRows > 151)
+            return (-1, []);
+
+          var processedRows = 0;
+
+          var taskList = Parallel.ForEach(rows, new ParallelOptions { MaxDegreeOfParallelism = 4 },
+            row => {
+              try {
+                var eventName = row.Cell(1).GetValue<string>();
+                var eventDescription = row.Cell(2).GetValue<string>();
+                var eventTotalSeats = row.Cell(3).GetValue<int>();
+                var eventGenres = row.Cell(4).GetValue<string>().Split(',').ToList();
+                var eventStartDate = row.Cell(5).GetValue<DateTime>();
+                var eventEndDate = row.Cell(6).GetValue<DateTime>();
+
+                if (string.IsNullOrEmpty(eventName) ||
+                    string.IsNullOrEmpty(eventDescription) ||
+                    eventTotalSeats <= 0 ||
+                    eventGenres.Count == 0 ||
+                    eventStartDate == default ||
+                    eventEndDate == default) {
+                  failedEvents.Add(eventName ?? "Unnamed Event");
+                  return;
+                }
+
+                var eventItem = new Events {
+                  EventId = Guid.NewGuid(),
+                  EventName = eventName,
+                  EventDescription = eventDescription,
+                  EventTotalSeats = eventTotalSeats,
+                  EventRegisteredSeats = 0,
+                  EventCollab = [],
+                  EventAgeRestriction = 0,
+                  EventBackgroundImage = "",
+                  EventTicketPrice = 0,
+                  EventGenres = eventGenres,
+                  EventStartDate = eventStartDate,
+                  EventEndDate = eventEndDate,
+                  EventLocation = new Location { Type = "Point", Coordinates = [78.486671, 17.385044] },
+                  EventStatus = EventStatusEnum.Scheduled.ToString(),
+                  EventCountry = "IND",
+                  EventDiscounts = [],
+                  EventCreatedBy = userId
+                };
+
+                var validationContext = new ValidationContext(eventItem);
+                Validator.ValidateObject(eventItem, validationContext, validateAllProperties: true);
+
+                eventsList.Add(eventItem);
+              }
+              catch (Exception) {
+                failedEvents.Add(row.Cell(1).GetValue<string>() ?? $"Unnamed Event starting at {row.Cell(5).GetValue<DateTime>()}");
+              }
+              finally {
+                Interlocked.Increment(ref processedRows);
+                var progress = (int)((double)processedRows / totalRows * 100);
+                _hubContext.Clients.Client(connectionId).SendAsync("ReceiveProgress", progress);
+              }
+            });
+
+          await Task.Run(() => taskList);
+
+          if (!eventsList.IsEmpty) {
+            await _mongoDb.Events.InsertManyAsync(eventsList);
+          }
+
+          return (eventsList.Count, failedEvents.ToList());
+        }
+      }
+    }
+    catch (Exception ex) {
+      throw new ApplicationException($"An error occurred during bulk upload: {ex.Message}");
     }
   }
 }

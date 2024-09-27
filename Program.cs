@@ -25,6 +25,7 @@ builder
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<EmailProviderConfig>(builder.Configuration.GetSection("BrevoConfig"));
 builder.Services.AddSingleton<IMongoDatabaseContext, MongoDatabaseContext>();
+builder.Services.AddSignalR();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();
@@ -51,7 +52,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             RoleClaimType = "type"
         };
         options.Events = new JwtBearerEvents {
-            OnTokenValidated = context => {  
+            OnTokenValidated = context => {
                 var userId = context.Principal?.FindFirst("userId")?.Value;
                 var userType = context.Principal?.FindFirst("type")?.Value;
                 if (userId == null) return Task.CompletedTask;
@@ -105,10 +106,11 @@ app.UseAuthentication(); // Use authentication
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ProgressHub>("/progress");
 
 try {
     var mongoContext = app.Services.GetRequiredService<MongoDatabaseContext>();
-    await mongoContext.EnsureIndexesCreatedAsync(); 
+    await mongoContext.EnsureIndexesCreatedAsync();
     await mongoContext.SeedDataAsync();
 }
 catch (Exception ex) {
@@ -117,4 +119,3 @@ catch (Exception ex) {
 }
 
 app.Run();
-  

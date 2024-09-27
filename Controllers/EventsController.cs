@@ -10,7 +10,7 @@ namespace waves_events.Controllers;
 [ApiController]
 public class EventsController : ControllerBase {
   private readonly IEventService _eventService;
-  
+
   public EventsController (IEventService eventService) {
     _eventService = eventService;
   }
@@ -18,14 +18,14 @@ public class EventsController : ControllerBase {
   private UserType ValidateAndGetUserType () {
     var userDetails = this.GetUserDetailsFromContext();
 
-    if (!userDetails.HasValue) 
+    if (!userDetails.HasValue)
       throw new UnauthorizedAccessException("User details not found. Check if user exists.");
 
-    var (userId, userType) = userDetails.Value;
+    (Guid userId, UserType userType) = userDetails.Value;
 
     if (userId != Guid.Empty)
       return userType;
-    
+
     throw new UnauthorizedAccessException("User Id cannot be empty.");
   }
 
@@ -40,9 +40,9 @@ public class EventsController : ControllerBase {
     }
 
     try {
-      if (!Guid.TryParse(id, out var guidId)) 
+      if (!Guid.TryParse(id, out var guidId))
         return BadRequest("The provided ID is not in a valid format.");
-      
+
       var response = await _eventService.GetEventById(guidId);
       return response == null ? BadRequest("Event does not exist.") : Ok(response);
     }
@@ -50,7 +50,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while getting event {id}: {ex.Message}");
     }
   }
-  
+
   [Authorize]
   [HttpPost("get-event-by-id-list")]
   public async Task<IActionResult> GetEventByIdList ([FromBody] List<string> ids) {
@@ -72,7 +72,7 @@ public class EventsController : ControllerBase {
 
       if (guidIds.Contains(Guid.Empty) || guidIds.Count == 0)
         return BadRequest("Invalid list IDs provided.");
-      
+
       var response = await _eventService.GetEventByIdList(guidIds);
       return response == null ? BadRequest("One or more queried events do not exist.") : Ok(response);
     }
@@ -90,8 +90,8 @@ public class EventsController : ControllerBase {
     catch (UnauthorizedAccessException) {
       return Unauthorized("User action unauthorized.");
     }
-    
-    if (pageNumber < 1 || pageSize < 1) 
+
+    if (pageNumber < 1 || pageSize < 1)
       return BadRequest("Page Number and Size must be greater than 0.");
 
     try {
@@ -103,7 +103,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while getting all events: {ex.Message}");
     }
   }
-  
+
   [Authorize]
   [HttpGet("get-events-with-genre/{genre}/{pageNumber:int}/{pageSize:int}")]
   public async Task<IActionResult> GetEventsWithGenre (string genre, int pageNumber, int pageSize) {
@@ -113,8 +113,8 @@ public class EventsController : ControllerBase {
     catch (UnauthorizedAccessException) {
       return Unauthorized("User action unauthorized.");
     }
-    
-    if (pageNumber < 1 || pageSize < 1) 
+
+    if (pageNumber < 1 || pageSize < 1)
       return BadRequest("Page Number and Size must be greater than 0.");
 
     try {
@@ -126,7 +126,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while getting events with genre {genre}: {ex.Message}");
     }
   }
-  
+
   [Authorize]
   [HttpGet("get-events-by-artist/{artistID}/{pageNumber:int}/{pageSize:int}")]
   public async Task<IActionResult> GetEventsByArtist (string artistID, int pageNumber, int pageSize) {
@@ -136,11 +136,11 @@ public class EventsController : ControllerBase {
     catch (UnauthorizedAccessException) {
       return Unauthorized("User action unauthorized.");
     }
-    
-    if (pageNumber < 1 || pageSize < 1) 
+
+    if (pageNumber < 1 || pageSize < 1)
       return BadRequest("Page Number and Size must be greater than 0.");
-    
-    if (!Guid.TryParse(artistID, out var id)) 
+
+    if (!Guid.TryParse(artistID, out var id))
       return BadRequest("The provided ID is not in a valid format.");
 
     try {
@@ -152,7 +152,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while getting events by artist {artistID}: {ex.Message}");
     }
   }
-  
+
   [Authorize]
   [HttpGet("get-events-with-artist-collab/{artistID}/{pageNumber:int}/{pageSize:int}")]
   public async Task<IActionResult> GetEventsWithArtistCollab (string artistID, int pageNumber, int pageSize) {
@@ -162,11 +162,11 @@ public class EventsController : ControllerBase {
     catch (UnauthorizedAccessException) {
       return Unauthorized("User action unauthorized.");
     }
-    
-    if (pageNumber < 1 || pageSize < 1) 
+
+    if (pageNumber < 1 || pageSize < 1)
       return BadRequest("Page Number and Size must be greater than 0.");
-    
-    if (!Guid.TryParse(artistID, out var id)) 
+
+    if (!Guid.TryParse(artistID, out var id))
       return BadRequest("The provided ID is not in a valid format.");
 
     try {
@@ -178,7 +178,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while getting events with artist collab {artistID}: {ex.Message}");
     }
   }
-  
+
   [Authorize]
   [HttpGet("get-events-by-location/{pageNumber:int}/{pageSize:int}")]
   public async Task<IActionResult> GetEventsByLocation ([FromBody] LocationRequest request, int pageNumber, int pageSize) {
@@ -188,15 +188,15 @@ public class EventsController : ControllerBase {
     catch (UnauthorizedAccessException) {
       return Unauthorized("User action unauthorized.");
     }
-    
-    if (pageNumber < 1 || pageSize < 1) 
+
+    if (pageNumber < 1 || pageSize < 1)
       return BadRequest("Page Number and Size must be greater than 0.");
-    
-    if (request.Location.Length is 0 or > 2 || request.Radius > 500) 
+
+    if (request.Location.Length is 0 or > 2 || request.Radius > 500)
       return BadRequest("The provided location request is not valid.");
 
     try {
-      var (events, numberOfEvents) = await _eventService.GetEventsWithLocation(request.Location, request.Radius, pageNumber, pageSize);                        
+      var (events, numberOfEvents) = await _eventService.GetEventsWithLocation(request.Location, request.Radius, pageNumber, pageSize);
       var totalPages = (int)Math.Ceiling(numberOfEvents / (double)pageSize);
       return Ok(new AllEventsResponse(numberOfEvents, totalPages, pageNumber, pageSize, events));
     }
@@ -204,7 +204,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while getting events by location: {ex.Message}");
     }
   }
-  
+
   [Authorize]
   [HttpGet("get-events-by-date-range/{pageNumber:int}/{pageSize:int}")]
   public async Task<IActionResult> GetEventsByDateRange ([FromBody] DateRangeRequest request, int pageNumber, int pageSize) {
@@ -214,15 +214,15 @@ public class EventsController : ControllerBase {
     catch (UnauthorizedAccessException) {
       return Unauthorized("User action unauthorized.");
     }
-    
-    if (pageNumber < 1 || pageSize < 1) 
+
+    if (pageNumber < 1 || pageSize < 1)
       return BadRequest("Page Number and Size must be greater than 0.");
-    
-    if (request.StartTime > request.EndTime) 
+
+    if (request.StartTime > request.EndTime)
       return BadRequest("The provided date range is not valid.");
 
     try {
-      var (events, numberOfEvents) = await _eventService.GetEventsWithDateRange(request.StartTime, request.EndTime, pageNumber, pageSize);                        
+      var (events, numberOfEvents) = await _eventService.GetEventsWithDateRange(request.StartTime, request.EndTime, pageNumber, pageSize);
       var totalPages = (int)Math.Ceiling(numberOfEvents / (double)pageSize);
       return Ok(new AllEventsResponse(numberOfEvents, totalPages, pageNumber, pageSize, events));
     }
@@ -230,7 +230,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while getting events by location: {ex.Message}");
     }
   }
-  
+
   [Authorize(Roles = "Admin")]
   [HttpPost("create-event")]
   public async Task<IActionResult> CreateEvent ([FromBody] Events request) {
@@ -250,7 +250,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while creating event: {ex.Message}");
     }
   }
-  
+
   [Authorize(Roles = "Admin")]
   [HttpPatch("update-event")]
   public async Task<IActionResult> UpdateOrModifyEvent ([FromBody] UpdateEventRequest request) {
@@ -259,7 +259,7 @@ public class EventsController : ControllerBase {
 
       if (userType is not UserType.Admin)
         return Unauthorized("Only admins can update events.");
-      
+
       var response = await _eventService.UpdateEvent(request, true);
       return response == null ? BadRequest("Event not found.") : Ok(response);
     }
@@ -270,7 +270,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while updating event: {ex.Message}");
     }
   }
-  
+
   [Authorize(Roles = "Admin")]
   [HttpPatch("update-event-collab")]
   public async Task<IActionResult> UpdateEventCollab ([FromBody] UpdateCollabRequest request) {
@@ -279,7 +279,7 @@ public class EventsController : ControllerBase {
 
       if (userType is not UserType.Admin)
         return Unauthorized("Only admins can update events.");
-      
+
       var response = await _eventService.UpdateEventCollab(request);
       return response == null ? BadRequest("Event not found.") : Ok(response);
     }
@@ -290,7 +290,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while updating event: {ex.Message}");
     }
   }
-  
+
   [Authorize(Roles = "Admin")]
   [HttpPatch("update-event-discounts")]
   public async Task<IActionResult> UpdateEventDiscounts ([FromBody] UpdateDiscountsRequest request) {
@@ -299,7 +299,7 @@ public class EventsController : ControllerBase {
 
       if (userType is not UserType.Admin)
         return Unauthorized("Only admins can update events.");
-      
+
       var response = await _eventService.UpdateEventDiscounts(request);
       return response == null ? BadRequest("Event not found.") : Ok(response);
     }
@@ -310,7 +310,7 @@ public class EventsController : ControllerBase {
       return StatusCode(500, $"An error occurred while updating event: {ex.Message}");
     }
   }
-  
+
   [Authorize(Roles = "Admin")]
   [HttpDelete("delete-event/{id}")]
   public async Task<IActionResult> DeleteEvent (string id) {
@@ -319,8 +319,8 @@ public class EventsController : ControllerBase {
 
       if (userType is not UserType.Admin)
         return Unauthorized("Only admins can delete events.");
-      
-      if (!Guid.TryParse(id, out var eventId)) 
+
+      if (!Guid.TryParse(id, out var eventId))
         return BadRequest("The provided ID is not in a valid format.");
 
       var response = await _eventService.DeleteEvent(eventId);
@@ -331,6 +331,60 @@ public class EventsController : ControllerBase {
     }
     catch (Exception ex) {
       return StatusCode(500, $"An error occurred while deleting event: {ex.Message}");
+    }
+  }
+
+  [Authorize]
+  [HttpGet("bulk-upload-template")]
+  public async Task<IActionResult> GetBulkUploadTemplate() {
+    try {
+      var templatePath = Path.Combine(Directory.GetCurrentDirectory(), "Assets", "EventsBulkUploadTemplate.xlsx");
+
+      if (!System.IO.File.Exists(templatePath)) {
+        return NotFound("Template file not found.");
+      }
+
+      var fileBytes = await System.IO.File.ReadAllBytesAsync(templatePath);
+
+      return Ok(File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "EventsBulkUploadTemplate.xlsx"));
+    }
+    catch (Exception ex) {
+      return StatusCode(500, $"An error occurred while retrieving the template: {ex.Message}");
+    }
+  }
+
+  [Authorize(Roles = "Admin")]
+  [HttpPost("bulk-upload")]
+  public async Task<IActionResult> BulkUpload([FromForm] IFormFile? file) {
+    ValidateAndGetUserType();
+    var userDetails = this.GetUserDetailsFromContext();
+
+    if (!userDetails.HasValue)
+      return Unauthorized("User details not found. Check if user exists.");
+
+    (Guid userId, UserType userType) = userDetails.Value;
+
+    if (userId == Guid.Empty)
+      return Unauthorized("User Id cannot be empty.");
+
+    if (userType != UserType.Admin)
+      return Unauthorized("Only admins can perform bulk uploads.");
+
+    if (file == null || file.Length == 0)
+      return BadRequest("No file uploaded.");
+
+    try {
+      var httpContext = HttpContext;
+      var connectionId = httpContext.Request.Query["connectionId"].ToString();
+      (var successCount, List<string> failedEvents) = await _eventService.BulkUploadEvents(file, userId, connectionId);
+
+      if (successCount == -1)
+        return BadRequest("Upload a maximum of 150 events.");
+
+      return Ok(new { SuccessCount = successCount, FailedEvents = failedEvents });
+    }
+    catch (Exception ex) {
+      return StatusCode(500, $"An error occurred during bulk upload: {ex.Message}");
     }
   }
 }

@@ -16,4 +16,5 @@ public interface IEventService {
     Task<Events?> UpdateEventCollab (UpdateCollabRequest collabObj);
     Task<Events?> UpdateEventDiscounts (UpdateDiscountsRequest discountsObj);
     Task<Guid?> DeleteEvent (Guid eventId);
+    Task<(int SuccessCount, List<string> FailedEvents)> BulkUploadEvents (IFormFile? file, Guid userId, string connectionId);
 }
