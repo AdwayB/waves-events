@@ -384,7 +384,7 @@ public class EventService : IEventService {
 
         using (var workbook = new XLWorkbook(stream)) {
           var worksheet = workbook.Worksheet(1);
-          var rows = worksheet.RangeUsed().RowsUsed().Skip(1).ToList();
+          var rows = worksheet.RangeUsed().RowsUsed().Skip(21).ToList();
           var totalRows = rows.Count;
 
           if (totalRows > 151)
